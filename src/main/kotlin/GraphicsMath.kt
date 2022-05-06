@@ -1,0 +1,263 @@
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.DpSize
+import java.awt.Rectangle
+import java.awt.image.BufferedImage
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
+fun scaleBitmapAspectRatio(
+    bitmap: BufferedImage,
+    width: Int,
+    height: Int
+): BufferedImage {
+    val boundW: Float = width.toFloat()
+    val boundH: Float = height.toFloat()
+
+    val ratioX: Float = boundW / bitmap.width
+    val ratioY: Float = boundH / bitmap.height
+    val ratio: Float = if (ratioX < ratioY) ratioX else ratioY
+
+    val resultH = (bitmap.height * ratio).toInt()
+    val resultW = (bitmap.width * ratio).toInt()
+
+    val result = BufferedImage(resultW, resultH, BufferedImage.TYPE_INT_RGB)
+    val graphics = result.createGraphics()
+    graphics.drawImage(bitmap, 0, 0, resultW, resultH, null)
+    graphics.dispose()
+
+    return result
+}
+
+//fun getDisplayBounds(bitmap: BufferedImage, windowSize: DpSize): Rectangle {
+//
+//    val boundW: Float = windowSize.width.value
+//    val boundH: Float = windowSize.height.value
+//
+//    val ratioX: Float = bitmap.width / boundW
+//    val ratioY: Float = bitmap.height / boundH
+//
+//    val ratio: Float = if (ratioX > ratioY) ratioX else ratioY
+//
+//    val resultW = (boundW * ratio)
+//    val resultH = (boundH * ratio)
+//
+//    return Rectangle(0, 0, resultW.toInt(), resultH.toInt())
+//}
+
+//fun applyGrayScaleFilter(bitmap: BufferedImage): BufferedImage {
+//
+//    val result = BufferedImage(
+//        bitmap.getWidth(),
+//        bitmap.getHeight(),
+//        BufferedImage.TYPE_BYTE_GRAY)
+//
+//    val graphics = result.getGraphics()
+//    graphics.drawImage(bitmap, 0, 0, null)
+//    graphics.dispose()
+//
+//    return result
+//}
+
+//fun applyPixelFilter(bitmap: BufferedImage): BufferedImage {
+//
+//    val w: Int = bitmap.width
+//    val h: Int = bitmap.height
+//
+//    var result = scaleBitmapAspectRatio(bitmap, w / 20, h / 20)
+//    result = scaleBitmapAspectRatio(result, w, h)
+//
+//    return result
+//}
+
+//fun applyBlurFilter(bitmap: BufferedImage): BufferedImage {
+//
+//    var result = BufferedImage(bitmap.getWidth(), bitmap.getHeight(), bitmap.type)
+//
+//    val graphics = result.getGraphics()
+//    graphics.drawImage(bitmap, 0, 0, null)
+//    graphics.dispose()
+//
+//    val radius = 11
+//    val size = 11
+//    val weight: Float = 1.0f / (size * size)
+//    val matrix = FloatArray(size * size)
+//
+//    for (i in 0..matrix.size - 1) {
+//        matrix[i] = weight
+//    }
+//
+//    val kernel = Kernel(radius, size, matrix)
+//    val op = ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null)
+//    result = op.filter(result, null)
+//
+//    return result.getSubimage(
+//        radius,
+//        radius,
+//        result.width - radius * 2,
+//        result.height - radius * 2
+//    )
+//}
+
+//fun toByteArray(bitmap: BufferedImage) : ByteArray {
+//    val baos = ByteArrayOutputStream()
+//    ImageIO.write(bitmap, "png", baos)
+//    return baos.toByteArray()
+//}
+
+fun cropImage(bitmap: BufferedImage, crop: Rectangle) : BufferedImage {
+    return bitmap.getSubimage(crop.x, crop.y, crop.width, crop.height)
+}
+
+//fun cropBitmapByScale(
+//    bitmap: BufferedImage,
+//    size: DpSize,
+//    scale: Float,
+//    drag: DragHandler
+//): BufferedImage {
+//    val crop = cropBitmapByBounds(
+//        bitmap,
+//        getDisplayBounds(bitmap, size),
+//        size,
+//        scale,
+//        drag
+//    )
+//    return cropImage(
+//        bitmap,
+//        Rectangle(crop.x, crop.y, crop.width - crop.x, crop.height - crop.y)
+//    )
+//}
+
+fun cropBitmapByBounds(
+    bitmap: BufferedImage,
+    bounds: Rectangle,
+    size: DpSize,
+    scaleFactor: Float,
+    drag: DragHandler
+): Rectangle {
+
+    if (scaleFactor <= 1f) {
+        return Rectangle(0, 0, bitmap.width, bitmap.height)
+    }
+
+    var scale = scaleFactor.toDouble().pow(1.4)
+
+    var boundW = (bounds.width / scale).roundToInt()
+    var boundH = (bounds.height / scale).roundToInt()
+
+    scale *= size.width.value / bounds.width.toDouble()
+
+    val offsetX = drag.getAmount().x / scale
+    val offsetY = drag.getAmount().y / scale
+
+    if (boundW > bitmap.width) {
+        boundW = bitmap.width
+    }
+    if (boundH > bitmap.height) {
+        boundH = bitmap.height
+    }
+
+    val invisibleW = bitmap.width - boundW
+    var leftOffset = (invisibleW / 2.0 - offsetX).roundToInt()
+
+    if (leftOffset > invisibleW) {
+        leftOffset = invisibleW
+        drag.getAmount().x = -((invisibleW / 2.0) * scale).roundToInt().toFloat()
+    }
+    if (leftOffset < 0) {
+        drag.getAmount().x = ((invisibleW / 2.0) * scale).roundToInt().toFloat()
+        leftOffset = 0
+    }
+
+    val invisibleH = bitmap.height - boundH
+    var topOffset = (invisibleH / 2 - offsetY).roundToInt()
+
+    if (topOffset > invisibleH) {
+        topOffset = invisibleH
+        drag.getAmount().y = -((invisibleH / 2.0) * scale).roundToInt().toFloat()
+    }
+    if (topOffset < 0) {
+        drag.getAmount().y = ((invisibleH / 2.0) * scale).roundToInt().toFloat()
+        topOffset = 0
+    }
+
+    return Rectangle(leftOffset, topOffset, leftOffset + boundW, topOffset + boundH)
+}
+
+//fun getPreferredWindowSize(desiredWidth: Int, desiredHeight: Int): DpSize {
+//    val screenSize: Dimension = Toolkit.getDefaultToolkit().screenSize
+//    val preferredWidth: Int = (screenSize.width * 0.8f).toInt()
+//    val preferredHeight: Int = (screenSize.height * 0.8f).toInt()
+//    val width: Int = if (desiredWidth < preferredWidth) desiredWidth else preferredWidth
+//    val height: Int = if (desiredHeight < preferredHeight) desiredHeight else preferredHeight
+//    return DpSize(width.dp, height.dp)
+//}
+
+class DragHandler {
+
+    private val amount = mutableStateOf(Point(0f, 0f))
+    private val distance = mutableStateOf(Point(0f, 0f))
+    private val locker: EventLocker = EventLocker()
+
+    fun getAmount(): Point {
+        return amount.value
+    }
+
+//    fun getDistance(): Point {
+//        return distance.value
+//    }
+
+    fun reset() {
+        distance.value = Point(Offset.Zero)
+        locker.unlock()
+    }
+
+//    fun cancel() {
+//        distance.value = Point(Offset.Zero)
+//        locker.lock()
+//    }
+//
+//    fun drag(dragDistance: Offset) {
+//        if (locker.isLocked()) {
+//            val dx = dragDistance.x
+//            val dy = dragDistance.y
+//
+//            distance.value = Point(distance.value.x + dx, distance.value.y + dy)
+//            amount.value = Point(amount.value.x + dx, amount.value.y + dy)
+//        }
+//    }
+}
+
+class Point {
+    var x: Float = 0f
+    var y: Float = 0f
+    constructor(x: Float, y: Float) {
+        this.x = x
+        this.y = y
+    }
+    constructor(point: Offset) {
+        this.x = point.x
+        this.y = point.y
+    }
+//    fun setAttr(x: Float, y: Float) {
+//        this.x = x
+//        this.y = y
+//    }
+}
+
+class EventLocker {
+
+    private var value: Boolean = false
+
+//    fun lock() {
+//        value = false
+//    }
+
+    fun unlock() {
+        value = true
+    }
+
+//    fun isLocked(): Boolean {
+//        return value
+//    }
+}
