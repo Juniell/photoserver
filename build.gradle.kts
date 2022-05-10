@@ -21,12 +21,13 @@ dependencies {
     implementation("com.alialbaali.kamel:kamel-image:0.3.0")
     implementation("org.jetbrains.compose.material:material-icons-extended-desktop:1.1.1")
     implementation("org.jetbrains.compose.components:components-splitpane-desktop:1.1.1")
+    implementation("org.burnoutcrew.composereorderable:reorderable:0.7.4")
     // бд
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("ch.qos.logback:logback-classic:1.2.11")
-    implementation("org.jetbrains.exposed:exposed-dao:0.37.3")
-    implementation("org.jetbrains.exposed:exposed-core:0.37.3")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.37.3")
+    implementation("org.jetbrains.exposed:exposed-dao:0.38.2")
+    implementation("org.jetbrains.exposed:exposed-core:0.38.2")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.38.2")
 }
 
 tasks.withType<KotlinCompile> {
