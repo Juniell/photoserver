@@ -22,6 +22,7 @@ dependencies {
     implementation("org.jetbrains.compose.material:material-icons-extended-desktop:1.1.1")
     implementation("org.jetbrains.compose.components:components-splitpane-desktop:1.1.1")
     implementation("org.burnoutcrew.composereorderable:reorderable:0.7.4")
+    implementation("com.godaddy.android.colorpicker:compose-color-picker:0.4.2")
     // бд
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("ch.qos.logback:logback-classic:1.2.11")

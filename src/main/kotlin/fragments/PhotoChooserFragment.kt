@@ -88,8 +88,7 @@ fun PhotoChooserFragment(
                         LazyGrid(
                             items = filteredFiles,
                             rowSize = 4,
-                            padding = PaddingValues(7.dp),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize().padding(7.dp)
                         ) {
 
                             val imageFile = if (filesMinisMap.containsKey(it.name))
@@ -213,128 +212,6 @@ fun PhotoChooserFragment(
                     }
                 }
             }
-
-//            Row {
-//                Spacer(modifier = Modifier.width(7.dp))
-//
-//                LazyGrid(items = filteredFiles, rowSize = 4, padding = PaddingValues(7.dp)) {
-//
-//                    val imageFile = if (filesMinisMap.containsKey(it.name))
-//                        filesMinisMap[it.name]!!
-//                    else
-//                        createMini(it, pathMinis) ?: it
-//
-//                    CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
-//                        val image = lazyPainterResource(data = imageFile)
-//
-//                        KamelImage(
-//                            resource = image,
-//                            contentDescription = "Image",
-//                            onLoading = {
-//                                Box(modifier = Modifier.fillMaxSize()) {
-//                                    CircularProgressIndicator()
-//                                }
-//                            },
-//                            contentScale = ContentScale.Crop,
-//                            modifier = Modifier.align(Alignment.Center).clickable { photoPreview = it }
-//                                .aspectRatio(1f).padding(7.dp)
-//                        )
-//                    }
-//                }
-//
-//                Spacer(modifier = Modifier.width(7.dp))
-//
-//                Spacer(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Gray))
-//
-//                Spacer(modifier = Modifier.width(7.dp))
-//
-//                Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-//
-//                    Row(
-//                        verticalAlignment = Alignment.CenterVertically,
-//                        horizontalArrangement = Arrangement.SpaceBetween,
-//                        modifier = Modifier.fillMaxWidth()
-//                    ) {
-//                        Spinner(
-//                            Filters.values().toList(),
-//                            selectedValue = selectedFilter,
-//                            onSelected = {
-//                                filteredFiles = when (selectedFilter.value) {
-//                                    Filters.OLD_FIRST ->
-//                                        files.sortedBy { it.lastModified() }
-//                                    else ->
-//                                        files.sortedBy { it.lastModified() }.reversed()
-//                                }.toMutableList()
-//                            },
-//                            SpinnerModifier(
-//                                width = 300.dp,
-//                                padding = PaddingValues(7.dp),
-//                                height = 55.dp,
-//                                textFontSize = 20.sp
-//                            )
-//                        )
-//
-//                        Button(
-//                            modifier = Modifier.padding(end = 15.dp),
-//                            onClick = {
-////                                if (chooserTimeRangeOn) {
-//                                // todo: добавить фильтрацию по времени
-//                                // todo: спрашивать в настройках, нужно ли указывать ещё и дату?
-////                                }
-//                                chooserTimeRangeOn = !chooserTimeRangeOn
-//                            }
-//                        ) {
-//                            if (chooserTimeRangeOn)
-//                                Text("Подтвердить")
-//                            else
-//                                Text("Выбрать время")
-//                        }
-//                    }
-//
-//                    Spacer(modifier = Modifier.height(7.dp).fillMaxWidth())
-//
-//                    if (chooserTimeRangeOn) {
-//                        Row(
-//                            horizontalArrangement = Arrangement.SpaceAround,
-//                            modifier = Modifier.fillMaxWidth(),
-//                            verticalAlignment = Alignment.CenterVertically
-//                        ) {
-//                            TimeRangePicker(
-//                                timeFirst = timeFirst,
-//                                timeSecond = timeSecond,
-//                                spacing = 0.dp,
-//                                animationHeight = 50.dp,
-//                                textStyle = TextStyle(fontSize = 30.sp)
-//                            )
-//                        }
-//
-//                        Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
-//                    }
-//
-//                    Image(
-//                        painter = BitmapPainter(loadImageBitmap(photoPreview)),
-//                        contentDescription = "Preview",
-//                        contentScale = ContentScale.Crop,
-//                        modifier = Modifier.padding(7.dp).align(Alignment.CenterHorizontally).fillMaxHeight(1f / 1.3f)
-//                    )
-//
-//                    Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
-//
-//                    Row(
-//                        verticalAlignment = Alignment.Bottom,
-//                        horizontalArrangement = Arrangement.SpaceBetween,
-//                        modifier = Modifier.padding(7.dp).fillMaxWidth().fillMaxHeight()
-//                    ) {
-//                        Button(onClick = onBackButtonClick) {
-//                            Text("Назад", fontSize = 30.sp, modifier = Modifier.padding(2.dp))
-//                        }
-//
-//                        Button(onClick = { onNextButtonClick(photoPreview) }) {
-//                            Text("Далее", fontSize = 30.sp, modifier = Modifier.padding(2.dp))
-//                        }
-//                    }
-//                }
-//            }
         }
     }
 }
