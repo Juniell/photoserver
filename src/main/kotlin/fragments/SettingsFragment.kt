@@ -50,7 +50,7 @@ fun SettingFragment(onNextButtonClick: (newSettings: InfoSettings) -> Unit) {
 
     val textStyle = TextStyle(fontSize = 18.sp)
     val elHeight = 55.dp
-    val elWidth = 550.dp
+    val elWidth = 580.dp
 
 
     MaterialTheme {
