@@ -1,4 +1,4 @@
-package fragments
+package fragments.photoEditor
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf

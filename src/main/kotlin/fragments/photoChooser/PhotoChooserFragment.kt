@@ -1,4 +1,4 @@
-package fragments
+package fragments.photoChooser
 
 import InfoSettings
 import Spinnable
@@ -14,10 +14,8 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,8 +34,9 @@ import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import scaleBitmapAspectRatio
 import java.awt.image.BufferedImage
 import java.io.File
-import java.io.InputStream
 import javax.imageio.ImageIO
+import loadImageBitmap
+import java.io.InputStream
 
 // todo: добавить выделение на выбранную картинку в Grid
 // todo: убрать paddings в картинках в Grid и использовать то, что скидывал Игорь
@@ -242,45 +241,4 @@ enum class Filters(val text: String) : Spinnable {
     abstract override fun toString(): String
 }
 
-//                    AsyncImage(
-//                        load = { loadImageBitmap(it) },
-//                        painterFor = { remember { BitmapPainter(it) } },
-//                        contentDescription = "Image",
-//                        contentScale = ContentScale.Crop,
-//                        modifier = Modifier.align(Alignment.Center).padding(7.dp).clickable { photoPreview = it }
-//                    )
 
-//@Composable
-//fun <T> AsyncImage(
-//    load: suspend () -> T,
-//    painterFor: @Composable (T) -> Painter,
-//    contentDescription: String,
-//    modifier: Modifier = Modifier,
-//    contentScale: ContentScale = ContentScale.Fit,
-//) {
-//    val image: T? by produceState<T?>(null) {
-//        value = withContext(Dispatchers.IO) {
-//            try {
-//                load()
-//            } catch (e: IOException) {
-//                e.printStackTrace()
-//                null
-//            }
-//        }
-//    }
-//
-//    if (image != null) {
-//        Image(
-//            painter = painterFor(image!!),
-//            contentDescription = contentDescription,
-//            contentScale = contentScale,
-//            modifier = modifier
-//        )
-//    }
-//}
-//
-fun loadImageBitmap(file: File): ImageBitmap =
-    file.inputStream().buffered().use(::loadImageBitmap)
-
-//fun loadSvgPainter(file: File, density: Density): Painter =
-//    file.inputStream().buffered().use { loadSvgPainter(it, density) }

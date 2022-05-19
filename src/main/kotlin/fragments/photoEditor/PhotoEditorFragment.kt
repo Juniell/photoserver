@@ -1,4 +1,4 @@
-package fragments
+package fragments.photoEditor
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
+import fragments.photoEditor.components.EditorToolbar
+import fragments.photoEditor.components.Tools
+import loadImageBitmap
 import org.burnoutcrew.reorderable.*
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
@@ -61,7 +64,7 @@ fun PhotoEditorFragment(
     var selectedTools by remember { mutableStateOf(Tools.BRUSH) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
     var brushSize by remember { mutableStateOf(10f) }
-    var filter by remember { mutableStateOf<ColorFilter?>(colorFilter) }
+    var filter by remember { mutableStateOf(colorFilter) }
 
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(
@@ -457,7 +460,7 @@ fun LayersList(
     onLayersOrderChanged: (ItemPosition, ItemPosition) -> Unit,
     onDeleteLayer: (layerIndex: Int) -> Unit
 ) {
-    //todo: добавить появление штучки для скролла
+    //todo: добавить скрооллбар
     val state = rememberReorderState()
 
     LazyColumn(

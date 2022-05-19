@@ -9,7 +9,11 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import fragments.*
+import fragments.photoChooser.PhotoChooserFragment
+import fragments.photoEditor.BackStack
+import fragments.photoEditor.PhotoEditorFragment
+import fragments.result.ResultFragment
+import fragments.settings.SettingFragment
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import java.io.File
 

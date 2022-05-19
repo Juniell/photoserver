@@ -1,4 +1,4 @@
-package fragments
+package fragments.photoEditor
 
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -7,34 +7,13 @@ import org.burnoutcrew.reorderable.move
 const val BACKSTACK_MAX_INDEX = 30 - 1
 
 class BackStack {
-    val backStack = mutableListOf(emptyList<Layer>())
-    var currPosition = 0
+    private val backStack = mutableListOf(emptyList<Layer>())
+    private var currPosition = 0
     private val currLayers =  mutableStateListOf<Layer>()
     var undoEnabled by  mutableStateOf(currPosition > 0 && backStack.isNotEmpty())
     var redoEnabled by  mutableStateOf(currPosition < backStack.size - 1 && currPosition < BACKSTACK_MAX_INDEX && backStack.isNotEmpty())
 
     fun currLayers(): SnapshotStateList<Layer> = currLayers
-
-    fun addCurrLayersToBackStack() {
-        println("currPosition = $currPosition")
-        println("backStack = $backStack")
-        println("backStack.lastIndex = ${backStack.lastIndex}")
-
-        if (currPosition < backStack.lastIndex) {
-            var index = backStack.lastIndex
-            while (index != currPosition) {
-                backStack.removeLast()
-                index--
-            }
-            currPosition = backStack.lastIndex
-        }
-
-        if (backStack.lastIndex == BACKSTACK_MAX_INDEX)
-            backStack.removeAt(0)
-
-        backStack.add(currLayers.toList())
-        currPosition++
-    }
 
     fun addToLayerList(layer: Layer) {
         currLayers.add(layer)
@@ -78,7 +57,28 @@ class BackStack {
         }
     }
 
-    fun updateUndoRedoEnabled() {
+    private fun addCurrLayersToBackStack() {
+//        println("currPosition = $currPosition")
+//        println("backStack = $backStack")
+//        println("backStack.lastIndex = ${backStack.lastIndex}")
+
+        if (currPosition < backStack.lastIndex) {
+            var index = backStack.lastIndex
+            while (index != currPosition) {
+                backStack.removeLast()
+                index--
+            }
+            currPosition = backStack.lastIndex
+        }
+
+        if (backStack.lastIndex == BACKSTACK_MAX_INDEX)
+            backStack.removeAt(0)
+
+        backStack.add(currLayers.toList())
+        currPosition++
+    }
+
+    private fun updateUndoRedoEnabled() {
         undoEnabled = currPosition > 0 && backStack.isNotEmpty()
         redoEnabled = currPosition < backStack.size - 1 && currPosition < BACKSTACK_MAX_INDEX && backStack.isNotEmpty()
     }

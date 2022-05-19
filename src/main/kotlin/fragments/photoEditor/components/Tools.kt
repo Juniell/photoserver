@@ -1,4 +1,4 @@
-package fragments
+package fragments.photoEditor.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -45,6 +45,7 @@ import io.kamel.image.config.Default
 import io.kamel.image.config.LocalKamelConfig
 import io.kamel.image.lazyPainterResource
 import kotlinx.coroutines.launch
+import loadImageBitmap
 import java.io.File
 
 private val kamelConfig = KamelConfig {

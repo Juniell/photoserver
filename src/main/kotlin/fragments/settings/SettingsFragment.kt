@@ -1,4 +1,4 @@
-package fragments
+package fragments.settings
 
 import Info
 import Info.dirInput
