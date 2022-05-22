@@ -48,6 +48,8 @@ import kotlinx.coroutines.launch
 import loadImageBitmap
 import java.io.File
 
+const val TEXT_FONT_SIZE = 70f
+
 private val kamelConfig = KamelConfig {
     takeFrom(KamelConfig.Default)
     imageBitmapCacheSize = 1000
@@ -105,7 +107,7 @@ fun Tools(
     onChooseFilter: (selectedFilter: ColorFilter?) -> Unit,
     onBrushSizeChange: (newSize: Float) -> Unit,
     onStickerClick: (sticker: File) -> Unit,
-    onCreatingTextComplete: (text: String, color: Color, size: Float, angle: Float, font: FontFamily) -> Unit
+    onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit
 ) {
     val stickers = File(stickerPath).listFiles()?.filter { it.isFile } ?: listOf()
 //    val selectedColor = remember { mutableStateOf(Color.Red) }
@@ -232,41 +234,43 @@ private fun FilterPicker(photo: File, onChooseFilter: (selectedFilter: ColorFilt
 
     LazyGrid(items = filters, rowSize = 2, modifier = Modifier.padding(5.dp)) {
 //        Box(contentAlignment = Alignment.Center) {
-            CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
-                val image = lazyPainterResource(data = photo)
+        CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
+            val image = lazyPainterResource(data = photo)
 
-                KamelImage(
-                    resource = image,
-                    contentDescription = null,
-                    colorFilter = it,
-                    onLoading = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .align(Alignment.Center)
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    },
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
+            KamelImage(
+                resource = image,
+                contentDescription = null,
+                colorFilter = it,
+                onLoading = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .align(Alignment.Center)
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                },
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
 //                    .align(Alignment.Center)
-                        .clickable { onChooseFilter(it) }.aspectRatio(1f).padding(5.dp)
+                    .clickable { onChooseFilter(it) }.aspectRatio(1f).padding(5.dp)
 //                    .aspectRatio(1f).padding(7.dp).fillMaxSize()
-                )
+            )
 //                Text("${filters.indexOf(it)}", fontSize = 30.sp, modifier = Modifier.background(Color(Color.White.red, Color.White.green, Color.White.blue, 0.3f)))
-            }
+        }
 //        }
     }
 }
 
 @Composable
-private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, size: Float, angle: Float, font: FontFamily) -> Unit) {
+private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit) {
     var text by remember { mutableStateOf("") }
     var textColor by remember { mutableStateOf(Color.Blue) }
-    var textSize by remember { mutableStateOf(20f) }
+//    var textSize by remember { mutableStateOf(20f) }
     var textAngle by remember { mutableStateOf(0f) }
     var textFont by remember { mutableStateOf<FontFamily>(FontFamily.Default) }
+    var scale by remember { mutableStateOf(1f) }
+
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -301,12 +305,12 @@ private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, si
                 Text("Размер")
 
                 Slider(
-                    value = textSize,
-                    valueRange = 10f..100f,
+                    value = scale,
+                    valueRange = 0.3f..2f,
                     onValueChange = {
-                        textSize = it
+                        scale = it
                     },
-                    modifier = Modifier.width(400.dp)
+                    modifier = Modifier.width(250.dp)
                 )
             }
 
@@ -330,22 +334,24 @@ private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, si
             Text(
                 text = text.ifEmpty { "Текст" },
                 color = textColor,
-                fontSize = textSize.sp,
+                fontSize = TEXT_FONT_SIZE.sp,
                 fontFamily = textFont,
                 overflow = TextOverflow.Clip,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(15.dp, 2.dp).clipToBounds().fillMaxHeight(0.8f)/*.wrapContentHeight()*/
                     .fillMaxWidth()
-                    .graphicsLayer(
+                    .graphicsLayer {
                         rotationZ = textAngle
-                    )
+                        scaleX = scale
+                        scaleY = scale
+                    }
             )
         }
 
         Button(
             onClick = {
-                onCreatingTextComplete(text, textColor, textSize, textAngle, textFont)
+                onCreatingTextComplete(text, textColor, textFont, scale, textAngle)
             },
         ) {
             Text("Добавить текст")

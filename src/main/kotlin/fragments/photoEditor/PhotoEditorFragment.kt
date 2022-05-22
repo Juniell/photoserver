@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.paint
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
 import fragments.photoEditor.components.EditorToolbar
+import fragments.photoEditor.components.TEXT_FONT_SIZE
 import fragments.photoEditor.components.Tools
 import loadImageBitmap
 import org.burnoutcrew.reorderable.*
@@ -40,7 +43,10 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 
 private var backStack = BackStack()
@@ -55,7 +61,7 @@ fun PhotoEditorFragment(
     onBackButtonClick: () -> Unit,
     onNextButtonClick: (colorFilter: ColorFilter?, backStack: BackStack) -> Unit,
     renew: Boolean = true
-    ) {
+) {
     if (!renew) {
         backStack = BackStack()
         colorFilter = null
@@ -193,13 +199,13 @@ fun PhotoEditorFragment(
                                 )
                             )
                         },
-                        onCreatingTextComplete = { text, color, size, angle, font ->
+                        onCreatingTextComplete = { text, color, font, scale, angle ->
                             backStack.addToLayerList(
                                 TextLayer(
                                     text,
                                     color,
-                                    mutableStateOf(size),
                                     font,
+                                    mutableStateOf(scale),
                                     mutableStateOf(angle),
                                     mutableStateOf(Offset.Zero)
                                 )
@@ -224,64 +230,46 @@ fun PhotoEditorFragment(
 }
 
 @Composable
-fun SliderImageScale(startScale: Float, onScaleChange: (newScale: Float) -> Unit) {
-    var scale by remember { mutableStateOf(startScale) }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.wrapContentSize()
-            .padding(5.dp)
-    ) {
-        Text("Размер")
-
-        Slider(
-            value = scale,
-            valueRange = 0.3f..2f,
-            onValueChange = {
-                scale = it
-                onScaleChange(scale)
-            },
-            modifier = Modifier.width(250.dp)
-        )
-    }
-}
-
-@Composable
-fun SliderTextSize(startFontSize: Float, onTextSizeChange: (newTextSize: Float) -> Unit) {
-    var fontSize by remember { mutableStateOf(startFontSize) }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.wrapContentSize()
-            .padding(5.dp)
-    ) {
-        Text("Размер")
-
-        Slider(
-            value = fontSize,
-            valueRange = 10f..100f,
-            onValueChange = {
-                fontSize = it
-                onTextSizeChange(fontSize)
-            },
-            modifier = Modifier.width(250.dp)
-        )
-    }
-}
-
-
-@Composable
-fun PopupChangeAngle(
-    startAngle: Float,
-    onAngleChange: (newAngle: Float) -> Unit,
-    onDismiss: () -> Unit,
-    sliderChangeSize: @Composable () -> Unit
+fun SliderWithName(
+    name: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (newValue: Float) -> Unit
 ) {
-    var angle by remember { mutableStateOf(startAngle) }
+    var sliderValue by remember { mutableStateOf(value) }
 
-    Box {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.wrapContentSize()
+            .padding(5.dp)
+    ) {
+        Text(name)
+
+        Slider(
+            value = sliderValue,
+            valueRange = valueRange,
+            onValueChange = {
+                sliderValue = it
+                onValueChange(it)
+            },
+            modifier = Modifier.width(250.dp)
+        )
+    }
+}
+
+// todo: вынести именно размер и поворот в отдельную функцию -> использовать тут и в tools для текста
+// todo: решить проблему со скейлом в Tools для превью текста
+@Composable
+fun PopupAngleSizeMenu(
+    modifier: Modifier,
+    startAngle: Float,
+    startScale: Float,
+    onAngleChange: (newAngle: Float) -> Unit,
+    onScaleChange: (newScale: Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(modifier = modifier) {
         Popup(onDismissRequest = { onDismiss() }, focusable = true) {
             Card(
                 elevation = 5.dp,
@@ -289,26 +277,24 @@ fun PopupChangeAngle(
                 shape = RoundedCornerShape(5.dp)
             ) {
                 Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.wrapContentSize()
-                            .padding(5.dp)
-                    ) {
-                        Text("Поворот")
 
-                        Slider(
-                            value = angle,
-                            valueRange = -180f..180f,
-                            onValueChange = {
-                                angle = it
-                                onAngleChange(angle)
-                            },
-                            modifier = Modifier.width(250.dp)
-                        )
-                    }
+                    SliderWithName(
+                        name = "Поворот",
+                        value = startAngle,
+                        valueRange = -180f..180f,
+                        onValueChange = {
+                            onAngleChange(it)
+                        }
+                    )
 
-                    sliderChangeSize()
+                    SliderWithName(
+                        name = "Размер",
+                        value = startScale,
+                        valueRange = 0.3f..2f,
+                        onValueChange = {
+                            onScaleChange(it)
+                        }
+                    )
                 }
             }
         }
@@ -319,7 +305,6 @@ fun PopupChangeAngle(
 @ExperimentalFoundationApi
 @Composable
 fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabled: Boolean = true) {
-//    val sortedLayer = layers.sortedBy { it.hashCode() }
 
     layers.forEachIndexed { index, layer ->
         var popupEnabled by remember { mutableStateOf(false) }
@@ -330,125 +315,68 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                 layer
             )
 
-            is TextLayer -> {
-                if (popupEnabled && editingEnabled) {
-                    PopupChangeAngle(
-                        layer.angle.value,
-                        onAngleChange = { newAngle ->
-                            layer.angle.value = newAngle
-                        },
-                        onDismiss = { popupEnabled = false },
-                        sliderChangeSize = {
-                            SliderTextSize(layer.size.value, onTextSizeChange = { newTextSize ->
-                                layer.size.value = newTextSize
-                            })
+            else -> {
+                val modifier = Modifier
+                    .zIndex(index.toFloat())
+                    .offset {
+                        IntOffset(
+                            (layer.offset.value.x).roundToInt(),
+                            (layer.offset.value.y).roundToInt()
+                        )
+                    }
+                    .scale(layer.scale.value)
+                    .rotate(layer.angle.value)
+                    .pointerInput(layer) {
+                        detectDragGestures { change, dragAmount ->
+                            if (editingEnabled) {
+                                change.consumeAllChanges()
+                                layer.offset.value =
+                                    ((layer.offset.value / layer.scale.value) + dragAmount.rotateBy(layer.angle.value)) * layer.scale.value
+                            }
                         }
+                    }
+                    .combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = editingEnabled,
+                        onClick = { },
+                        onLongClick = { popupEnabled = true }
+                    )
+
+
+                if (popupEnabled && editingEnabled) {
+                    PopupAngleSizeMenu(
+                        modifier = Modifier.offset {
+                            IntOffset(
+                                layer.offset.value.x.roundToInt(),
+                                layer.offset.value.y.roundToInt()
+                            )
+                        },
+                        startAngle = layer.angle.value,
+                        startScale = layer.scale.value,
+                        onAngleChange = { layer.angle.value = it },
+                        onScaleChange = { layer.scale.value = it },
+                        onDismiss = { popupEnabled = false },
                     )
                 }
 
-                Text(
-                    text = layer.text,
-                    color = layer.color,
-                    fontSize = layer.size.value.sp,
-                    fontFamily = layer.fontFamily,
-                    modifier = Modifier
-                        .zIndex(index.toFloat())
-                        .graphicsLayer(rotationZ = layer.angle.value)
-                        .offset {
-                            IntOffset(layer.offset.value.x.roundToInt(), layer.offset.value.y.roundToInt())
-                        }
-                        .pointerInput(layer) {
-                            detectDragGestures { change, dragAmount ->
-                                if (editingEnabled) {
-                                    change.consumeAllChanges()
-                                    layer.offset.value += dragAmount
-                                }
-                            }
-                        }.combinedClickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = editingEnabled,
-                            onClick = {
-//                                text = "Click! ${count++}"
-                            },
-                            onLongClick = {
-                                popupEnabled = true
-                            }
-                        )
-                )
-            }
-
-
-            is ImageLayer -> {
-//                var zoom by remember { mutableStateOf(1f) }
-//                var angle by remember { mutableStateOf(0f) }
-
-                if (popupEnabled && editingEnabled) {
-                    PopupChangeAngle(
-                        layer.angle.value,
-                        onAngleChange = { newAngle ->
-                            layer.angle.value = newAngle
-                        },
-                        onDismiss = { popupEnabled = false },
-                        sliderChangeSize = {
-                            SliderImageScale(layer.scale.value, onScaleChange = { newScale ->
-                                layer.scale.value = newScale
-                            })
-                        }
+                if (layer is ImageLayer) {
+                    Image(
+                        painter = BitmapPainter(loadImageBitmap(layer.image)),
+                        contentDescription = "Sticker",
+                        modifier = modifier
                     )
                 }
 
-
-                Image(
-                    painter = BitmapPainter(loadImageBitmap(layer.image)),
-                    contentDescription = "Sticker",
-                    modifier = Modifier
-                        .zIndex(index.toFloat())
-                        .offset {
-                            IntOffset(layer.offset.value.x.roundToInt(), layer.offset.value.y.roundToInt())
-                        }
-                        .pointerInput(layer) {
-                            detectDragGestures { change, dragAmount ->
-                                if (editingEnabled) {
-                                    change.consumeAllChanges()
-                                    layer.offset.value += dragAmount
-                                }
-                            }
-//                            detectTransformGestures { centroid, pan, gestureZoom, gestureRotate ->
-//                                val oldScale = zoom
-//                                val newScale = zoom * gestureZoom
-//
-//                                offset = (offset + centroid / oldScale).rotateBy(gestureRotate) -
-//                                        (centroid / newScale + pan / oldScale)
-//                                zoom = newScale
-//                                angle += gestureRotate
-//                            }
-                        }
-                        .combinedClickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = editingEnabled,
-                            onClick = {
-//                                text = "Click! ${count++}"
-                            },
-                            onLongClick = {
-                                popupEnabled = true
-                            }
-                        )
-                        .graphicsLayer {
-                            rotationZ = layer.angle.value
-                            scaleX = layer.scale.value
-                            scaleY = layer.scale.value
-                        }
-//                        .graphicsLayer {
-//                            translationX = -offset.x * zoom
-//                            translationY = -offset.y * zoom
-//                            scaleX = zoom
-//                            scaleY = zoom
-//                            rotationZ = angle
-//                            transformOrigin = TransformOrigin(0f, 0f)
-//                        }
-                )
+                if (layer is TextLayer) {
+                    Text(
+                        text = layer.text,
+                        color = layer.color,
+                        fontSize = TEXT_FONT_SIZE.sp,
+                        fontFamily = layer.fontFamily,
+                        modifier = modifier
+                    )
+                }
             }
         }
     }
@@ -610,10 +538,10 @@ fun createColorCircle(color: Color): ImageBitmap {
     return imageBitmap
 }
 
-//fun Offset.rotateBy(angle: Float): Offset {
-//    val angleInRadians = angle * PI / 180
-//    return Offset(
-//        (x * cos(angleInRadians) - y * sin(angleInRadians)).toFloat(),
-//        (x * sin(angleInRadians) + y * cos(angleInRadians)).toFloat()
-//    )
-//}
+fun Offset.rotateBy(angle: Float): Offset {
+    val angleInRadians = angle * PI / 180
+    return Offset(
+        (x * cos(angleInRadians) - y * sin(angleInRadians)).toFloat(),
+        (x * sin(angleInRadians) + y * cos(angleInRadians)).toFloat()
+    )
+}

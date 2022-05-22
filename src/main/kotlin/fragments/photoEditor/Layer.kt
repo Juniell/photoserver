@@ -12,6 +12,7 @@ open class Layer(
     open val name: String,
     open var offset: MutableState<Offset>,
     open var angle: MutableState<Float>,
+    open var scale: MutableState<Float>,
 )
 
 class BrushLayer(
@@ -19,23 +20,23 @@ class BrushLayer(
     val color: Color,
     val brushSize: Float,
     override val name: String = "Линия",
-) : Layer(name, mutableStateOf(Offset.Zero), mutableStateOf(0f))
+) : Layer(name, mutableStateOf(Offset.Zero), mutableStateOf(0f), mutableStateOf(1f))
 
 class ImageLayer(
     val image: File,
-    var scale: MutableState<Float>,
+    override var scale: MutableState<Float>,
     override var angle: MutableState<Float>,
     override var offset: MutableState<Offset>,
     override val name: String = "Стикер"
-) : Layer(name, offset, angle)
+) : Layer(name, offset, angle, scale)
 
 class TextLayer(
     val text: String,
     val color: Color,
-    var size: MutableState<Float>,
     val fontFamily: FontFamily,
+    override var scale: MutableState<Float>,
     override var angle: MutableState<Float>,
     override var offset: MutableState<Offset>,
     override val name: String = "Текст"
-) : Layer(name, offset, angle)
+) : Layer(name, offset, angle, scale)
 
