@@ -253,13 +253,41 @@ fun SliderWithName(
                 sliderValue = it
                 onValueChange(it)
             },
-            modifier = Modifier.width(250.dp)
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
-// todo: вынести именно размер и поворот в отдельную функцию -> использовать тут и в tools для текста
-// todo: решить проблему со скейлом в Tools для превью текста
+@Composable
+fun SlidersSizeAngle(
+    modifier: Modifier = Modifier,
+    startScale: Float,
+    startAngle: Float,
+    onScaleChange: (newScale: Float) -> Unit,
+    onAngleChange: (newAngle: Float) -> Unit,
+) {
+    Column (modifier = modifier.fillMaxWidth())
+    {
+        SliderWithName(
+            name = "Поворот",
+            value = startAngle,
+            valueRange = -180f..180f,
+            onValueChange = {
+                onAngleChange(it)
+            }
+        )
+
+        SliderWithName(
+            name = "Размер ",
+            value = startScale,
+            valueRange = 0.3f..2f,
+            onValueChange = {
+                onScaleChange(it)
+            }
+        )
+    }
+}
+
 @Composable
 fun PopupAngleSizeMenu(
     modifier: Modifier,
@@ -276,26 +304,13 @@ fun PopupAngleSizeMenu(
                 backgroundColor = Color.White,
                 shape = RoundedCornerShape(5.dp)
             ) {
-                Column {
-
-                    SliderWithName(
-                        name = "Поворот",
-                        value = startAngle,
-                        valueRange = -180f..180f,
-                        onValueChange = {
-                            onAngleChange(it)
-                        }
-                    )
-
-                    SliderWithName(
-                        name = "Размер",
-                        value = startScale,
-                        valueRange = 0.3f..2f,
-                        onValueChange = {
-                            onScaleChange(it)
-                        }
-                    )
-                }
+                SlidersSizeAngle(
+                    modifier = Modifier.width(300.dp),
+                    startScale = startScale,
+                    startAngle = startAngle,
+                    onScaleChange = onScaleChange,
+                    onAngleChange = onAngleChange
+                )
             }
         }
     }
@@ -489,9 +504,7 @@ fun BrushPoint(
                                 }
                             }
                         }
-//                        layers.add(BrushLayer(path, color.value))
                         onEndPaint(path)
-                        ////addToLayerList(BrushLayer(path, color), layers)
                         points.clear()
                     }
                 ) { change, _ ->
@@ -503,7 +516,7 @@ fun BrushPoint(
                 }
             }
     } else
-        Modifier/*.fillMaxSize()*/
+        Modifier
 
     Canvas(modifier = modifierBrush.then(modifier)) {
         if (enabled) {

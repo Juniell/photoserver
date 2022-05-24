@@ -39,7 +39,7 @@ import loadImageBitmap
 import java.io.InputStream
 
 // todo: добавить выделение на выбранную картинку в Grid
-// todo: убрать paddings в картинках в Grid и использовать то, что скидывал Игорь
+// todo: убрать paddings в картинках в Grid
 
 @ExperimentalSplitPaneApi
 @Composable

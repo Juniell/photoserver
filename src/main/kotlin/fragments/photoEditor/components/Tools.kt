@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.godaddy.android.colorpicker.harmony.ColorHarmonyMode
 import com.godaddy.android.colorpicker.harmony.HarmonyColorPicker
 import components.LazyGrid
+import fragments.photoEditor.SlidersSizeAngle
 import io.kamel.core.config.KamelConfig
 import io.kamel.core.config.takeFrom
 import io.kamel.image.KamelImage
@@ -49,6 +50,7 @@ import loadImageBitmap
 import java.io.File
 
 const val TEXT_FONT_SIZE = 70f
+const val SYMBOLS_LIMIT = 20
 
 private val kamelConfig = KamelConfig {
     takeFrom(KamelConfig.Default)
@@ -266,95 +268,103 @@ private fun FilterPicker(photo: File, onChooseFilter: (selectedFilter: ColorFilt
 private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit) {
     var text by remember { mutableStateOf("") }
     var textColor by remember { mutableStateOf(Color.Blue) }
-//    var textSize by remember { mutableStateOf(20f) }
     var textAngle by remember { mutableStateOf(0f) }
     var textFont by remember { mutableStateOf<FontFamily>(FontFamily.Default) }
-    var scale by remember { mutableStateOf(1f) }
+    var textScale by remember { mutableStateOf(1f) }
+    val scaffoldState = rememberScaffoldState()
+    val scope = rememberCoroutineScope()
 
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxHeight()
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ColorPicker(
-                alphaEnabled = false,
-                onColorChange = { newColor ->
-                    textColor = newColor
+    Scaffold(
+        scaffoldState = scaffoldState,
+        modifier = Modifier.fillMaxHeight(),
+        snackbarHost = {
+            SnackbarHost(it) {
+                Snackbar(modifier = Modifier.wrapContentSize()) {
+                    Text(text = it.message)
                 }
-            )
-
-            OutlinedTextField(
-                value = text,
-                maxLines = 1,
-                onValueChange = { text = it },
-                label = { Text("Текст") },
-                modifier = Modifier.fillMaxWidth().padding(0.dp, 5.dp)
-            )
-
-            TextFontPicker(onFontClick = {
-                textFont = it
-            })
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Размер")
-
-                Slider(
-                    value = scale,
-                    valueRange = 0.3f..2f,
-                    onValueChange = {
-                        scale = it
-                    },
-                    modifier = Modifier.width(250.dp)
-                )
             }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Поворот")
-
-                Slider(
-                    value = textAngle,
-                    valueRange = -180f..180f,
-                    onValueChange = {
-                        textAngle = it
-                    },
-                    modifier = Modifier.width(400.dp)
-                )
-            }
-
-            Text(
-                text = text.ifEmpty { "Текст" },
-                color = textColor,
-                fontSize = TEXT_FONT_SIZE.sp,
-                fontFamily = textFont,
-                overflow = TextOverflow.Clip,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(15.dp, 2.dp).clipToBounds().fillMaxHeight(0.8f)/*.wrapContentHeight()*/
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        rotationZ = textAngle
-                        scaleX = scale
-                        scaleY = scale
-                    }
-            )
         }
-
-        Button(
-            onClick = {
-                onCreatingTextComplete(text, textColor, textFont, scale, textAngle)
-            },
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxHeight(),
         ) {
-            Text("Добавить текст")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ColorPicker(
+                    alphaEnabled = false,
+                    onColorChange = { newColor ->
+                        textColor = newColor
+                    }
+                )
+
+                OutlinedTextField(
+                    value = text,
+                    maxLines = 1,
+                    singleLine = true,
+                    onValueChange = {
+                        if (it.length <= SYMBOLS_LIMIT)
+                            text = it
+                    },
+                    label = { Text("Текст") },
+                    modifier = Modifier.fillMaxWidth().padding(0.dp, 5.dp, 0.dp, 0.dp),
+                )
+
+                Text(
+                    text = "${text.length}/$SYMBOLS_LIMIT",
+                    textAlign = TextAlign.End,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth().padding(0.dp, 0.dp, 0.dp, 5.dp)
+                )
+
+                TextFontPicker(onFontClick = {
+                    textFont = it
+                })
+
+                SlidersSizeAngle(
+                    startScale = textScale,
+                    startAngle = textAngle,
+                    onScaleChange = { textScale = it },
+                    onAngleChange = { textAngle = it }
+                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .padding(15.dp, 2.dp)
+                        .fillMaxHeight(0.8f)
+                        .fillMaxWidth()
+                        .clipToBounds()
+                ) {
+                    Text(
+                        text = text.ifEmpty { "Текст" },
+                        color = textColor,
+                        fontSize = TEXT_FONT_SIZE.sp,
+                        fontFamily = textFont,
+                        overflow = TextOverflow.Clip,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                rotationZ = textAngle
+                                scaleX = textScale
+                                scaleY = textScale
+                            }
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    if (text.isEmpty()) {
+                        scope.launch {
+                            scaffoldState.snackbarHostState.showSnackbar("Текст не может быть пустым", duration = SnackbarDuration.Short)
+                        }
+                    } else
+                        onCreatingTextComplete(text, textColor, textFont, textScale, textAngle)
+                }
+            ) {
+                Text("Добавить текст")
+            }
         }
     }
 }
@@ -362,28 +372,6 @@ private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, fo
 @Composable
 private fun TextFontPicker(onFontClick: (font: FontFamily) -> Unit) {
     var selected by remember { mutableStateOf(fonts.first()) }
-
-//    LazyGrid(items = fonts, rowSize = 5) {
-//        Text(
-//            text = "Аа",
-//            textAlign = TextAlign.Center,
-//            fontFamily = it,
-//            lineHeight = 44.sp,
-//            fontSize = 22.sp,
-//            modifier = Modifier
-//                .width(70.dp)
-//                .aspectRatio(1f)
-//                .padding(3.dp)
-//                .clip(CircleShape)
-//                .clickable {
-//                    selected = it
-//                    onFontClick(it)
-//                }
-//                .border(1.dp, Color.DarkGray, shape = CircleShape)
-//                .background(if (selected == it) Color.LightGray else Color.White, shape = CircleShape)
-//        )
-//    }
-
     val scrollState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
