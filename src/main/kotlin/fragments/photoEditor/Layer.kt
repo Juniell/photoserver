@@ -8,19 +8,24 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontFamily
 import java.io.File
 
-open class Layer(
+abstract class Layer(
     open val name: String,
     open var offset: MutableState<Offset>,
     open var angle: MutableState<Float>,
     open var scale: MutableState<Float>,
-)
+) {
+    abstract fun makeCopy(): Layer
+}
 
 class BrushLayer(
     val path: Path,
     val color: Color,
     val brushSize: Float,
     override val name: String = "Линия",
-) : Layer(name, mutableStateOf(Offset.Zero), mutableStateOf(0f), mutableStateOf(1f))
+) : Layer(name, mutableStateOf(Offset.Zero), mutableStateOf(0f), mutableStateOf(1f)) {
+
+    override fun makeCopy(): Layer = BrushLayer(path, color, brushSize, name)
+}
 
 class ImageLayer(
     val image: File,
@@ -28,7 +33,16 @@ class ImageLayer(
     override var angle: MutableState<Float>,
     override var offset: MutableState<Offset>,
     override val name: String = "Стикер"
-) : Layer(name, offset, angle, scale)
+) : Layer(name, offset, angle, scale) {
+
+    override fun makeCopy(): Layer = ImageLayer(
+        image = image,
+        scale = mutableStateOf(scale.value),
+        angle = mutableStateOf(angle.value),
+        offset = mutableStateOf(offset.value),
+        name = name
+    )
+}
 
 class TextLayer(
     val text: String,
@@ -38,5 +52,16 @@ class TextLayer(
     override var angle: MutableState<Float>,
     override var offset: MutableState<Offset>,
     override val name: String = "Текст"
-) : Layer(name, offset, angle, scale)
+) : Layer(name, offset, angle, scale) {
+
+    override fun makeCopy(): Layer = TextLayer(
+        text = text,
+        color = color,
+        fontFamily = fontFamily,
+        scale = mutableStateOf(scale.value),
+        angle = mutableStateOf(angle.value),
+        offset = mutableStateOf(offset.value),
+        name = name
+    )
+}
 

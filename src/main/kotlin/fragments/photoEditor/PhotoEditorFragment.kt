@@ -234,7 +234,8 @@ fun SliderWithName(
     name: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
-    onValueChange: (newValue: Float) -> Unit
+    onValueChange: (newValue: Float) -> Unit,
+    onValueChangeFinished: (Value: Float) -> Unit
 ) {
     var sliderValue by remember { mutableStateOf(value) }
 
@@ -253,6 +254,9 @@ fun SliderWithName(
                 sliderValue = it
                 onValueChange(it)
             },
+            onValueChangeFinished = {
+                onValueChangeFinished(sliderValue)
+            },
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -265,25 +269,24 @@ fun SlidersSizeAngle(
     startAngle: Float,
     onScaleChange: (newScale: Float) -> Unit,
     onAngleChange: (newAngle: Float) -> Unit,
+    onChangeFinished: () -> Unit = {}
 ) {
-    Column (modifier = modifier.fillMaxWidth())
+    Column(modifier = modifier.fillMaxWidth())
     {
         SliderWithName(
             name = "Поворот",
             value = startAngle,
             valueRange = -180f..180f,
-            onValueChange = {
-                onAngleChange(it)
-            }
+            onValueChange = { onAngleChange(it) },
+            onValueChangeFinished = { onChangeFinished() }
         )
 
         SliderWithName(
             name = "Размер ",
             value = startScale,
             valueRange = 0.3f..2f,
-            onValueChange = {
-                onScaleChange(it)
-            }
+            onValueChange = { onScaleChange(it) },
+            onValueChangeFinished = { onChangeFinished() }
         )
     }
 }
@@ -295,6 +298,7 @@ fun PopupAngleSizeMenu(
     startScale: Float,
     onAngleChange: (newAngle: Float) -> Unit,
     onScaleChange: (newScale: Float) -> Unit,
+    onChangeFinished: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Box(modifier = modifier) {
@@ -309,7 +313,8 @@ fun PopupAngleSizeMenu(
                     startScale = startScale,
                     startAngle = startAngle,
                     onScaleChange = onScaleChange,
-                    onAngleChange = onAngleChange
+                    onAngleChange = onAngleChange,
+                    onChangeFinished = onChangeFinished
                 )
             }
         }
@@ -327,7 +332,7 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
         when (layer) {
             is BrushLayer -> BrushOld(
                 modifier = Modifier.zIndex(index.toFloat()).then(modifierBrush),
-                layer
+                layer = layer
             )
 
             else -> {
@@ -342,13 +347,16 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                     .scale(layer.scale.value)
                     .rotate(layer.angle.value)
                     .pointerInput(layer) {
-                        detectDragGestures { change, dragAmount ->
-                            if (editingEnabled) {
-                                change.consumeAllChanges()
-                                layer.offset.value =
-                                    ((layer.offset.value / layer.scale.value) + dragAmount.rotateBy(layer.angle.value)) * layer.scale.value
+                        detectDragGestures(
+                            onDragEnd = { backStack.saveLayerList() },
+                            onDrag = { change, dragAmount ->
+                                if (editingEnabled) {
+                                    change.consumeAllChanges()
+                                    layer.offset.value =
+                                        ((layer.offset.value / layer.scale.value) + dragAmount.rotateBy(layer.angle.value)) * layer.scale.value
+                                }
                             }
-                        }
+                        )
                     }
                     .combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -372,6 +380,7 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                         onAngleChange = { layer.angle.value = it },
                         onScaleChange = { layer.scale.value = it },
                         onDismiss = { popupEnabled = false },
+                        onChangeFinished = { backStack.saveLayerList() },
                     )
                 }
 
@@ -485,56 +494,54 @@ fun BrushPoint(
     brushSize: Float,
     onEndPaint: (path: Path) -> Unit
 ) {
+    if (!enabled)
+        return
+
     val points = remember { mutableStateListOf<Offset>() }
     var count = 2 // чтобы не обрабатывать каждый сдвиг
 
-    val modifierBrush = if (enabled) {
-        Modifier
-//            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnd = {
-                        val path = Path()
-                        path.apply {
-                            points.forEachIndexed { i, point ->
-                                if (i == 0) {
-                                    moveTo(point.x, point.y)
-                                } else {
-                                    lineTo(point.x, point.y)
-                                }
+    Canvas(modifier = Modifier
+        .pointerInput(Unit) {
+            detectDragGestures(
+                onDragEnd = {
+                    val path = Path()
+                    path.apply {
+                        points.forEachIndexed { i, point ->
+                            if (i == 0) {
+                                moveTo(point.x, point.y)
+                            } else {
+                                lineTo(point.x, point.y)
                             }
                         }
-                        onEndPaint(path)
-                        points.clear()
                     }
-                ) { change, _ ->
-                    if (count == 2) {
-                        points.add(change.position)
-                        count = 0
-                    } else
-                        count++
+                    onEndPaint(path)
+                    points.clear()
                 }
+            ) { change, _ ->
+                if (count == 2) {
+                    points.add(change.position)
+                    count = 0
+                } else
+                    count++
             }
-    } else
-        Modifier
-
-    Canvas(modifier = modifierBrush.then(modifier)) {
-        if (enabled) {
-            drawPath(
-                path = Path().apply {
-                    points.forEachIndexed { i, point ->
-                        if (i == 0) {
-                            moveTo(point.x, point.y)
-                        } else {
-                            lineTo(point.x, point.y)
-                        }
-                    }
-                },
-                color = color,
-                style = Stroke(width = brushSize)
-            )
         }
+        .then(modifier)
+    ) {
+        drawPath(
+            path = Path().apply {
+                points.forEachIndexed { i, point ->
+                    if (i == 0) {
+                        moveTo(point.x, point.y)
+                    } else {
+                        lineTo(point.x, point.y)
+                    }
+                }
+            },
+            color = color,
+            style = Stroke(width = brushSize)
+        )
     }
+
 }
 
 fun createColorCircle(color: Color): ImageBitmap {
