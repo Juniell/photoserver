@@ -102,8 +102,8 @@ private val fonts = listOf(
 fun Tools(
     modifier: Modifier,
     selectedTools: Tools,
-//    selectedColor: MutableState<Color>,
-    photo: File,
+    selectedColor: Color,
+    photoMini: File,
     stickerPath: String,
     onColorChange: (newColor: Color) -> Unit,
     onChooseFilter: (selectedFilter: ColorFilter?) -> Unit,
@@ -112,22 +112,42 @@ fun Tools(
     onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit
 ) {
     val stickers = File(stickerPath).listFiles()?.filter { it.isFile } ?: listOf()
-//    val selectedColor = remember { mutableStateOf(Color.Red) }
+    var color by remember { mutableStateOf(selectedColor) }
+    var customColor by remember { mutableStateOf(Color.Magenta) }
 
     Box(modifier = modifier) {
         when (selectedTools) {
-            Tools.BRUSH -> {    //todo: передавать и восстанавливать последний цвет
+            Tools.BRUSH -> {
                 Column {
-                    ColorPicker(onColorChange)
+                    ColorPicker(
+                        color = color,
+                        colorCustom = customColor,
+                        onColorChange = {
+                            color = it
+                            onColorChange(it)
+                        },
+                        onCustomColorChange = {
+                            customColor = it
+                        }
+                    )
                     BrushSizePicker(onBrushSizeChange)
                 }
             }
 
             Tools.STICKER -> StickerPicker(stickers, onStickerClick)
 
-            Tools.FIlTER -> FilterPicker(photo, onChooseFilter)
+            Tools.FIlTER -> FilterPicker(photoMini, onChooseFilter)
 
-            Tools.TEXT -> TextCreating(onCreatingTextComplete)
+            Tools.TEXT -> TextCreating(
+                color = color,
+                colorCustom = customColor,
+                onCreatingTextComplete = onCreatingTextComplete,
+                onColorChange = {
+                    color = it
+                    onColorChange(it)
+                },
+                onCustomColorChange = {customColor = it}
+            )
 
             else -> Text(text = "")
         }
@@ -136,12 +156,14 @@ fun Tools(
 
 @Composable
 private fun ColorPicker(
-//    selectedColor: MutableState<Color>,
+    color: Color,
+    colorCustom: Color,
     onColorChange: (newColor: Color) -> Unit,
+    onCustomColorChange: (newColor: Color) -> Unit,
     alphaEnabled: Boolean = true
 ) {
-    var customColor by remember { mutableStateOf(Color.Red) }
-    var selectedColor by remember { mutableStateOf(Color.Red) }
+    var selectedColor by remember { mutableStateOf(color) }
+    var customColor by remember { mutableStateOf(colorCustom) }
     var alpha by remember { mutableStateOf(1f) }
 
 //    val colors = listOf(
@@ -157,14 +179,16 @@ private fun ColorPicker(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         LazyGrid(items = colors, rowSize = 7, modifier = Modifier./*width(310.dp).*/padding(10.dp)) {
             Box(modifier = Modifier
+                .aspectRatio(1f)
+                .padding(4.dp)
+                .border(
+                    width = if (selectedColor == it) 3.dp else 1.dp,
+                    color = Color.Black)
+                .background(it)
                 .clickable {
                     selectedColor = Color(it.red, it.green, it.blue, alpha)
                     onColorChange(selectedColor)
                 }
-                .aspectRatio(1f)
-                .padding(4.dp)
-                .border(1.dp, Color.Black)
-                .background(it)
             )
         }
 
@@ -178,6 +202,7 @@ private fun ColorPicker(
                 customColor = Color(newColor.red, newColor.green, newColor.blue, alpha)
                 selectedColor = customColor
                 onColorChange(selectedColor)
+                onCustomColorChange(selectedColor)
             })
 
         if (alphaEnabled)
@@ -233,14 +258,10 @@ private fun StickerPicker(stickers: List<File>, onStickerClick: (sticker: File) 
 
 @Composable
 private fun FilterPicker(photo: File, onChooseFilter: (selectedFilter: ColorFilter?) -> Unit) {
-
     LazyGrid(items = filters, rowSize = 2, modifier = Modifier.padding(5.dp)) {
-//        Box(contentAlignment = Alignment.Center) {
         CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
-            val image = lazyPainterResource(data = photo)
-
             KamelImage(
-                resource = image,
+                resource = lazyPainterResource(data = photo),
                 contentDescription = null,
                 colorFilter = it,
                 onLoading = {
@@ -254,20 +275,22 @@ private fun FilterPicker(photo: File, onChooseFilter: (selectedFilter: ColorFilt
                 },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-//                    .align(Alignment.Center)
                     .clickable { onChooseFilter(it) }.aspectRatio(1f).padding(5.dp)
-//                    .aspectRatio(1f).padding(7.dp).fillMaxSize()
             )
-//                Text("${filters.indexOf(it)}", fontSize = 30.sp, modifier = Modifier.background(Color(Color.White.red, Color.White.green, Color.White.blue, 0.3f)))
         }
-//        }
     }
 }
 
 @Composable
-private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit) {
+private fun TextCreating(
+    color: Color,
+    colorCustom: Color,
+    onColorChange: (newColor: Color) -> Unit,
+    onCustomColorChange: (newColor: Color) -> Unit,
+    onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit
+) {
     var text by remember { mutableStateOf("") }
-    var textColor by remember { mutableStateOf(Color.Blue) }
+    var textColor by remember { mutableStateOf(color) }
     var textAngle by remember { mutableStateOf(0f) }
     var textFont by remember { mutableStateOf<FontFamily>(FontFamily.Default) }
     var textScale by remember { mutableStateOf(1f) }
@@ -293,9 +316,13 @@ private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, fo
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 ColorPicker(
                     alphaEnabled = false,
+                    color = textColor,
+                    colorCustom = colorCustom,
                     onColorChange = { newColor ->
                         textColor = newColor
-                    }
+                        onColorChange(newColor)
+                    },
+                    onCustomColorChange = onCustomColorChange
                 )
 
                 OutlinedTextField(
@@ -357,7 +384,10 @@ private fun TextCreating(onCreatingTextComplete: (text: String, color: Color, fo
                 onClick = {
                     if (text.isEmpty()) {
                         scope.launch {
-                            scaffoldState.snackbarHostState.showSnackbar("Текст не может быть пустым", duration = SnackbarDuration.Short)
+                            scaffoldState.snackbarHostState.showSnackbar(
+                                "Текст не может быть пустым",
+                                duration = SnackbarDuration.Short
+                            )
                         }
                     } else
                         onCreatingTextComplete(text, textColor, textFont, textScale, textAngle)

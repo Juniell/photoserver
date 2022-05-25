@@ -27,11 +27,13 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
+import fragments.photoChooser.DIR_MINIS
 import fragments.photoEditor.components.EditorToolbar
 import fragments.photoEditor.components.TEXT_FONT_SIZE
 import fragments.photoEditor.components.Tools
@@ -141,8 +143,6 @@ fun PhotoEditorFragment(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize().background(color = Color.Gray)
-//                            .paint(BitmapPainter(loadImageBitmap(photo)), colorFilter = filter)
-//                            .clipToBounds()
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -179,17 +179,14 @@ fun PhotoEditorFragment(
                 first(500.dp) {
                     Tools(
                         modifier = Modifier.padding(5.dp, 0.dp),
-                        selectedTools, photo, stickerPath,
-                        onColorChange = { newColor ->
-                            selectedColor = newColor
-                        },
-                        onChooseFilter = { selectedFilter ->
-                            filter = selectedFilter
-                        },
-                        onBrushSizeChange = { newSize ->
-                            brushSize = newSize
-                        },
-                        onStickerClick = { sticker ->
+                        selectedTools = selectedTools,
+                        selectedColor = selectedColor,
+                        photoMini = File(photo.parent + File.separator + DIR_MINIS + File.separator + photo.name),
+                        stickerPath = stickerPath,
+                        onColorChange = { newColor: Color -> selectedColor = newColor },
+                        onChooseFilter = { selectedFilter: ColorFilter? -> filter = selectedFilter },
+                        onBrushSizeChange = { newSize: Float -> brushSize = newSize },
+                        onStickerClick = { sticker: File ->
                             backStack.addToLayerList(
                                 ImageLayer(
                                     sticker,
@@ -199,7 +196,7 @@ fun PhotoEditorFragment(
                                 )
                             )
                         },
-                        onCreatingTextComplete = { text, color, font, scale, angle ->
+                        onCreatingTextComplete = {text: String, color: Color, font: FontFamily, scale: Float, angle: Float ->
                             backStack.addToLayerList(
                                 TextLayer(
                                     text,
@@ -544,7 +541,7 @@ fun BrushPoint(
 
 }
 
-fun createColorCircle(color: Color): ImageBitmap {
+private fun createColorCircle(color: Color): ImageBitmap {
     val imageBitmap = ImageBitmap(30, 30)
     val canvasBitmap = Canvas(imageBitmap.asSkiaBitmap())
 
@@ -558,7 +555,7 @@ fun createColorCircle(color: Color): ImageBitmap {
     return imageBitmap
 }
 
-fun Offset.rotateBy(angle: Float): Offset {
+private fun Offset.rotateBy(angle: Float): Offset {
     val angleInRadians = angle * PI / 180
     return Offset(
         (x * cos(angleInRadians) - y * sin(angleInRadians)).toFloat(),

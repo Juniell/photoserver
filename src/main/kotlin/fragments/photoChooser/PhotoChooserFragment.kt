@@ -28,18 +28,19 @@ import io.kamel.image.KamelImage
 import io.kamel.image.config.Default
 import io.kamel.image.config.LocalKamelConfig
 import io.kamel.image.lazyPainterResource
+import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import scaleBitmapAspectRatio
 import java.awt.image.BufferedImage
 import java.io.File
-import javax.imageio.ImageIO
-import loadImageBitmap
 import java.io.InputStream
+import javax.imageio.ImageIO
 
-// todo: добавить выделение на выбранную картинку в Grid
 // todo: убрать paddings в картинках в Grid
+
+const val DIR_MINIS = "minis"
 
 @ExperimentalSplitPaneApi
 @Composable
@@ -54,7 +55,7 @@ fun PhotoChooserFragment(
     }
 
     val path = settings.dirInput!!
-    val pathMinis = path + File.separator + "minis"
+    val pathMinis = path + File.separator + DIR_MINIS
     File(pathMinis).apply {
         if (!exists())
             mkdir()

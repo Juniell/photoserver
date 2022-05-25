@@ -12,7 +12,7 @@ const val BACKSTACK_MAX_INDEX = 30 - 1
 class BackStack {
     private val backStack = mutableListOf(emptyList<Layer>())
     private var currPosition = 0
-    private var currLayers = mutableStateListOf<Layer>()
+    private val currLayers = mutableStateListOf<Layer>()
     var undoEnabled by mutableStateOf(currPosition > 0 && backStack.isNotEmpty())
     var redoEnabled by mutableStateOf(currPosition < backStack.size - 1 && currPosition < BACKSTACK_MAX_INDEX && backStack.isNotEmpty())
 
