@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.godaddy.android.colorpicker.harmony.ColorHarmonyMode
 import com.godaddy.android.colorpicker.harmony.HarmonyColorPicker
 import components.LazyGrid
+import fragments.photoEditor.SliderWithName
 import fragments.photoEditor.SlidersSizeAngle
 import io.kamel.core.config.KamelConfig
 import io.kamel.core.config.takeFrom
@@ -146,7 +147,7 @@ fun Tools(
                     color = it
                     onColorChange(it)
                 },
-                onCustomColorChange = {customColor = it}
+                onCustomColorChange = { customColor = it }
             )
 
             else -> Text(text = "")
@@ -174,16 +175,18 @@ private fun ColorPicker(
 //    )
     val colors = listOf(Color.Black, Color.White, Color.Blue, Color.Green, Color.Yellow, Color.Red, customColor)
 
-    //todo: Определиться с количеством "заданных" цветов)
-
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         LazyGrid(items = colors, rowSize = 7, modifier = Modifier./*width(310.dp).*/padding(10.dp)) {
             Box(modifier = Modifier
+//                .clip(CircleShape)
                 .aspectRatio(1f)
                 .padding(4.dp)
                 .border(
                     width = if (selectedColor == it) 3.dp else 1.dp,
-                    color = Color.Black)
+                    color = Color.Black
+                )
+//                .border(width = 0.dp, shape = CircleShape, color = Color.Black)
+//                .background(it, shape = CircleShape)
                 .background(it)
                 .clickable {
                     selectedColor = Color(it.red, it.green, it.blue, alpha)
@@ -222,18 +225,17 @@ private fun ColorPicker(
 
 @Composable
 private fun BrushSizePicker(onSizeChange: (newSize: Float) -> Unit) {
-    var size by remember { mutableStateOf(10f) }
-    Column {
-        Text(text = "Размер кисти")
-        Slider(
-            value = size,
-            valueRange = 3f..30f,
-            onValueChange = {
-                size = it
-                onSizeChange(it)
-            }
-        )
-    }
+//    var size by remember { mutableStateOf(10f) }
+
+    SliderWithName(
+        name = "Размер кисти",
+        value = 10f,
+        valueRange = 3f..30f,
+        onValueChange = {
+//            size = it
+            onSizeChange(it)
+        }
+    )
 }
 
 @Composable
@@ -245,7 +247,7 @@ private fun StickerPicker(stickers: List<File>, onStickerClick: (sticker: File) 
             Image(
                 painter = BitmapPainter(loadImageBitmap(it)),
                 contentDescription = "Sticker",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .width(300.dp)                 //todo:  разобраться с размером по-другому
                     .aspectRatio(1f)
@@ -275,7 +277,7 @@ private fun FilterPicker(photo: File, onChooseFilter: (selectedFilter: ColorFilt
                 },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .clickable { onChooseFilter(it) }.aspectRatio(1f).padding(5.dp)
+                    .padding(5.dp).clickable { onChooseFilter(it) }.aspectRatio(1f)
             )
         }
     }

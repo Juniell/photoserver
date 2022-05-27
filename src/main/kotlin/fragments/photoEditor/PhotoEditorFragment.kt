@@ -14,8 +14,7 @@ import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.rotate
@@ -27,12 +26,13 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.zIndex
 import fragments.photoChooser.DIR_MINIS
 import fragments.photoEditor.components.EditorToolbar
 import fragments.photoEditor.components.TEXT_FONT_SIZE
@@ -45,6 +45,7 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
+import javax.imageio.ImageIO
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -56,12 +57,14 @@ private var colorFilter: ColorFilter? = null
 
 @ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
+@ExperimentalComposeUiApi
 @Composable
 fun PhotoEditorFragment(
     photo: File,
+    dirOutput: String,
     stickerPath: String,
     onBackButtonClick: () -> Unit,
-    onNextButtonClick: (colorFilter: ColorFilter?, backStack: BackStack) -> Unit,
+    onNextButtonClick: (resPhotoPath: String) -> Unit,
     renew: Boolean = true
 ) {
     if (!renew) {
@@ -73,6 +76,8 @@ fun PhotoEditorFragment(
     var selectedColor by remember { mutableStateOf(Color.Blue) }
     var brushSize by remember { mutableStateOf(10f) }
     var filter by remember { mutableStateOf(colorFilter) }
+    var size: IntSize? = null
+    val imageBitmap = loadImageBitmap(photo)
 
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(
@@ -131,7 +136,8 @@ fun PhotoEditorFragment(
                             Button(
                                 onClick = {
                                     colorFilter = filter
-                                    onNextButtonClick(filter, backStack)
+                                    val resPhotoPath = savePhoto(imageBitmap, size!!.width, size!!.height, filter, dirOutput)
+                                    onNextButtonClick(resPhotoPath)
                                 }
                             ) {
                                 Text("Готово")
@@ -144,26 +150,17 @@ fun PhotoEditorFragment(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize().background(color = Color.Gray)
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .paint(BitmapPainter(loadImageBitmap(photo)), colorFilter = filter)
-                                .clipToBounds()
-                        ) {
-                            Layers(
-                                modifierBrush = Modifier.matchParentSize(),
-                                layers = backStack.currLayers()
-                            )
-
-                            BrushPoint(
-                                modifier = Modifier.matchParentSize().zIndex((BACKSTACK_MAX_INDEX + 1).toFloat()),
-                                enabled = selectedTools == Tools.BRUSH,
-                                color = selectedColor,
-                                brushSize = brushSize
-                            ) { path ->
+                        Editor(
+                            image = imageBitmap,
+                            colorFilter = filter,
+                            selectedColor = selectedColor,
+                            selectedTools = selectedTools,
+                            brushSize = brushSize,
+                            onSizeChange = { size = it },
+                            onEndPaint = { path ->
                                 backStack.addToLayerList(BrushLayer(path, selectedColor, brushSize))
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -196,7 +193,7 @@ fun PhotoEditorFragment(
                                 )
                             )
                         },
-                        onCreatingTextComplete = {text: String, color: Color, font: FontFamily, scale: Float, angle: Float ->
+                        onCreatingTextComplete = { text: String, color: Color, font: FontFamily, scale: Float, angle: Float ->
                             backStack.addToLayerList(
                                 TextLayer(
                                     text,
@@ -226,13 +223,68 @@ fun PhotoEditorFragment(
     }
 }
 
+@ExperimentalFoundationApi
+@Composable
+fun Editor(
+    image: ImageBitmap,
+    colorFilter: ColorFilter?,
+    onSizeChange: (newSize: IntSize) -> Unit,
+    brush: @Composable (modifier: Modifier) -> Unit = { }
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .aspectRatio(image.width / image.height.toFloat())
+            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.FillBounds)
+            .onSizeChanged {
+                onSizeChange(it)
+            }
+            .clipToBounds()
+    ) {
+
+        Layers(
+            modifierBrush = Modifier.matchParentSize(),
+            layers = backStack.currLayers()
+        )
+
+        brush(Modifier.matchParentSize())
+    }
+}
+
+@ExperimentalFoundationApi
+@Composable
+fun Editor(
+    image: ImageBitmap,
+    colorFilter: ColorFilter?,
+    selectedColor: Color,
+    selectedTools: Tools,
+    brushSize: Float,
+    onSizeChange: (newSize: IntSize) -> Unit,
+    onEndPaint: (path: Path) -> Unit
+) {
+    Editor(
+        image = image,
+        colorFilter = colorFilter,
+        onSizeChange = onSizeChange,
+        brush = { modifier ->
+            BrushPoint(
+                modifier = Modifier.zIndex((BACKSTACK_MAX_INDEX + 1).toFloat()).then(modifier),
+                enabled = selectedTools == Tools.BRUSH,
+                color = selectedColor,
+                brushSize = brushSize,
+                onEndPaint = onEndPaint
+            )
+        }
+    )
+}
+
 @Composable
 fun SliderWithName(
     name: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     onValueChange: (newValue: Float) -> Unit,
-    onValueChangeFinished: (Value: Float) -> Unit
+    onValueChangeFinished: (Value: Float) -> Unit = {}
 ) {
     var sliderValue by remember { mutableStateOf(value) }
 
@@ -385,7 +437,9 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                     Image(
                         painter = BitmapPainter(loadImageBitmap(layer.image)),
                         contentDescription = "Sticker",
-                        modifier = modifier
+                        modifier = Modifier
+                            .widthIn(0.dp, 300.dp)
+                            .then(modifier),
                     )
                 }
 
@@ -562,3 +616,77 @@ private fun Offset.rotateBy(angle: Float): Offset {
         (x * sin(angleInRadians) + y * cos(angleInRadians)).toFloat()
     )
 }
+
+fun generateId(): String {
+    val time = System.currentTimeMillis() / 1000
+    val base = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    val b = 62L
+    var r = (time % b)
+    var res = base[r.toInt()].toString()
+    var q = time / b
+
+    while (q != 0L) {
+        r = q % b
+        q /= b
+        res = base[r.toInt()] + res
+    }
+    return res
+}
+
+@ExperimentalFoundationApi
+@ExperimentalComposeUiApi
+private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter: ColorFilter?, dirOutput: String): String {
+    val image = renderComposeScene(width, height) {
+        Editor(
+            image = imageBitmap,
+            filter,
+            onSizeChange = {}
+        )
+    }
+
+    val path = dirOutput + File.separator + generateId() + ".png"
+    val outputFile = File(path)
+    ImageIO.write(
+        image.toComposeImageBitmap().toAwtImage(),
+        "PNG",
+        outputFile.outputStream()
+    )
+    return outputFile.path
+}
+
+//fun resizeLayers(widthOrigPhoto: Int, widthNew: Int): List<Layer> {
+//    println("widthOrigPhoto = $widthOrigPhoto")
+//    val scale = widthOrigPhoto / widthNew
+//
+//    val resultLayers = mutableListOf<Layer>()
+//
+//    for (layer in backStack.currLayers()) {
+//        resultLayers.add(
+//            when (layer) {
+//                // todo: вопрос с path
+//                is BrushLayer -> BrushLayer(layer.path, layer.color, layer.brushSize * scale, layer.name)
+//
+//                is ImageLayer -> ImageLayer(
+//                    image = layer.image,
+//                    scale = mutableStateOf(layer.scale.value * scale),
+//                    angle = layer.angle,
+//                    offset = mutableStateOf(layer.offset.value * scale.toFloat()),
+//                    name = layer.name
+//                )
+//
+//                is TextLayer -> TextLayer(
+//                    text = layer.text,
+//                    color = layer.color,
+//                    fontFamily = layer.fontFamily,
+//                    scale = mutableStateOf(layer.scale.value * scale),
+//                    angle = layer.angle,
+//                    offset = mutableStateOf(layer.offset.value * scale.toFloat()),
+//                    name = layer.name
+//                )
+//
+//                else -> throw IllegalArgumentException("WHAAAT")
+//            }
+//        )
+//    }
+//    return resultLayers
+//}

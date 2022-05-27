@@ -68,8 +68,10 @@ class BackStack {
             currPosition = backStack.lastIndex
         }
 
-        if (backStack.lastIndex == BACKSTACK_MAX_INDEX)
+        if (backStack.lastIndex == BACKSTACK_MAX_INDEX) {
             backStack.removeAt(0)
+            currPosition = backStack.lastIndex
+        }
 
         backStack.add(getCopyCurrList())
         currPosition++

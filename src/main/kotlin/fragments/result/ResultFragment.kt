@@ -8,17 +8,12 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fragments.photoEditor.BackStack
-import fragments.photoEditor.Layers
 import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
@@ -29,9 +24,7 @@ import java.io.File
 @ExperimentalSplitPaneApi
 @Composable
 fun ResultFragment(
-    photo: File,
-    colorFilter: ColorFilter?,
-    backStack: BackStack,
+    photo: String,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: () -> Unit
 ) {
@@ -52,18 +45,10 @@ fun ResultFragment(
                 )
 
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .paint(BitmapPainter(loadImageBitmap(photo)), colorFilter = colorFilter)
-                            .clipToBounds()
-                    ) {
-                        Layers(
-                            modifierBrush = Modifier.matchParentSize(),
-                            layers = backStack.currLayers(),
-                            editingEnabled = false
-                        )
-                    }
+                    Image(
+                        bitmap = loadImageBitmap(File(photo)),
+                        contentDescription = null
+                    )
                 }
             }
 
