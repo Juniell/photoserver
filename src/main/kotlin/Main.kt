@@ -84,7 +84,7 @@ fun main() = application {
 
                 Fragments.RESULT -> {
                     ResultFragment(
-                        photo = resultPhotoPath,
+                        photoPath = resultPhotoPath,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_EDITOR
                             renewEditor = true

@@ -2,34 +2,55 @@ package fragments.result
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
+import androidx.compose.runtime.*
+
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.useResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.client.j2se.MatrixToImageWriter
+import com.google.zxing.common.BitMatrix
 import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import java.io.File
+import javax.imageio.ImageIO
+import androidx.compose.ui.res.loadImageBitmap
+
 
 @ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
 @Composable
 fun ResultFragment(
-    photo: String,
+    photoPath: String,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: () -> Unit
 ) {
+    val photo = File(photoPath)
+    val idPhoto = photo.nameWithoutExtension
 
-    val idPhoto = 54
+    val qrTgm = generateQR(idPhoto, Social.TELEGRAM)
+    var qrVk = File("qr_vk.png")
+
+    if (!qrVk.exists())
+        qrVk = generateQR("", Social.VK)
+
+    var qr by remember { mutableStateOf<File?>(qrVk) }
 
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(
@@ -46,7 +67,7 @@ fun ResultFragment(
 
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Image(
-                        bitmap = loadImageBitmap(File(photo)),
+                        bitmap = loadImageBitmap(photo),
                         contentDescription = null
                     )
                 }
@@ -70,7 +91,7 @@ fun ResultFragment(
                     )
 
                     Text(
-                        text = idPhoto.toString(),
+                        text = idPhoto,
                         textAlign = TextAlign.Center,
                         fontSize = 70.sp,
                         color = Color.Gray,
@@ -78,40 +99,46 @@ fun ResultFragment(
                     )
 
                     Text(
-                        text = "Поделиться в социальных сетях:",
+                        text = "Получить в социальных сетях:",
                         textAlign = TextAlign.Start,
                         fontSize = 40.sp,
                         modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
                     )
 
-                    val path = File(".").path + File.separator + "src" + File.separator + "main" + File.separator +
-                            "resources" + File.separator + "icon" + File.separator
-
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
-                        val icons = listOf(
-                            File(path + "logo_vk.png"),
-                            File(path + "logo_telegram.png"),
-                            File(path + "logo_email.png")
+                        val icons = mapOf(
+                            useResource("icon/logo_vk.png") { loadImageBitmap(it) } to Social.VK,
+                            useResource("icon/logo_telegram.png") { loadImageBitmap(it) } to Social.TELEGRAM,
+                            useResource("icon/logo_email.png") { loadImageBitmap(it) } to Social.EMAIL,
                         )
 
-                        icons.forEach {
+                        icons.forEach { (icon, social) ->
                             Image(
-                                painter = BitmapPainter(loadImageBitmap(it)),
+                                painter = BitmapPainter(icon),
                                 contentDescription = null,
                                 contentScale = ContentScale.Inside,
-                                modifier = Modifier.padding(7.dp).width(80.dp).aspectRatio(1f)
+                                modifier = Modifier
+                                    .padding(7.dp)
+                                    .width(80.dp)
+                                    .aspectRatio(1f)
+                                    .clickable {
+                                        qr = when (social) {
+                                            Social.VK -> qrVk
+                                            Social.TELEGRAM -> qrTgm
+                                            Social.EMAIL -> null
+                                        }
+                                    }
                             )
                         }
                     }
 
-                    val qr = File(path + "qr.png")
-
-                    Image(
-                        painter = BitmapPainter(loadImageBitmap(qr)),
-                        contentDescription = null,
-                        contentScale = ContentScale.Inside,
-                        modifier = Modifier.padding(7.dp).width(200.dp).aspectRatio(1f)
-                    )
+                    if (qr != null)
+                        Image(
+                            painter = BitmapPainter(loadImageBitmap(qr!!)),
+                            contentDescription = null,
+                            contentScale = ContentScale.Inside,
+                            modifier = Modifier.padding(7.dp).width(200.dp).aspectRatio(1f)
+                        )
                 }
 
 
@@ -131,4 +158,34 @@ fun ResultFragment(
             }
         }
     }
+}
+
+// todo: Добавить в настройках указание группы вк и чата телеграма
+fun generateQR(photoId: String, social: Social): File {
+    var matrix: BitMatrix? = null
+    val qrCodeContent = if (social == Social.TELEGRAM)
+        "tg://resolve?domain=PhotoServerBot&start=$photoId"
+    else
+        "vk.me/club94181787"
+
+    try {
+        matrix = MultiFormatWriter().encode(qrCodeContent, BarcodeFormat.QR_CODE, 400, 400)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    val im = MatrixToImageWriter.toBufferedImage(matrix)
+
+    val qrName = if (social == Social.VK) "qr_vk.png" else "qr_tgm.png"
+    val file = File(qrName)
+
+    ImageIO.write(im, "PNG", file.outputStream())
+
+    return file
+}
+
+enum class Social {
+    VK,
+    TELEGRAM,
+    EMAIL
 }

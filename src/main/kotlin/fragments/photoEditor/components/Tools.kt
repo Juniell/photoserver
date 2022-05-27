@@ -166,13 +166,6 @@ private fun ColorPicker(
     var selectedColor by remember { mutableStateOf(color) }
     var customColor by remember { mutableStateOf(colorCustom) }
     var alpha by remember { mutableStateOf(1f) }
-
-//    val colors = listOf(
-//        Color.Black, Color.Gray, Color.White, Color.Blue, Color.Cyan, Color.Green,
-//        Color(0.15294118f, 0.48235294f, 0.003921569f), Color.Yellow,
-//        Color(1.0f, 0.94509804f, 0.54901963f), Color(1.0f, 0.5294118f, 0.0f),
-//        Color.Red, Color.Magenta, Color(0.67058825f, 0.16470589f, 1.0f), customColor
-//    )
     val colors = listOf(Color.Black, Color.White, Color.Blue, Color.Green, Color.Yellow, Color.Red, customColor)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
