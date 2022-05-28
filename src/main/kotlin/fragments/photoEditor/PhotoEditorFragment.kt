@@ -45,7 +45,6 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
-import javax.imageio.ImageIO
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -644,13 +643,10 @@ private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter:
         )
     }
 
-    val path = dirOutput + File.separator + generateId() + ".png"
+    val path = dirOutput + File.separator + generateId() + ".jpg"
     val outputFile = File(path)
-    ImageIO.write(
-        image.toComposeImageBitmap().toAwtImage(),
-        "PNG",
-        outputFile.outputStream()
-    )
+
+    outputFile.writeBytes(image.encodeToData()!!.bytes)
     return outputFile.path
 }
 

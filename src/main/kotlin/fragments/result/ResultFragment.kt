@@ -1,12 +1,12 @@
 package fragments.result
 
+import BotServer
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.runtime.*
-
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -44,11 +44,13 @@ fun ResultFragment(
     val photo = File(photoPath)
     val idPhoto = photo.nameWithoutExtension
 
+    BotServer().sendPhoto(photo)
+
     val qrTgm = generateQR(idPhoto, Social.TELEGRAM)
     var qrVk = File("qr_vk.png")
 
     if (!qrVk.exists())
-        qrVk = generateQR("", Social.VK)
+        qrVk = generateQR(idPhoto, Social.VK)
 
     var qr by remember { mutableStateOf<File?>(qrVk) }
 
