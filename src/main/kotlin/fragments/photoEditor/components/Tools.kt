@@ -242,7 +242,7 @@ private fun StickerPicker(stickers: List<File>, onStickerClick: (sticker: File) 
                 contentDescription = "Sticker",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .width(300.dp)                 //todo:  разобраться с размером по-другому
+                    .width(300.dp)                 //todo:  разобраться с размером по-другому (через fillMaxWidth(1/rowSize)??)
                     .aspectRatio(1f)
                     .align(Alignment.Center)
                     .padding(7.dp)

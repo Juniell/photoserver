@@ -1,10 +1,11 @@
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
@@ -12,27 +13,32 @@ import androidx.compose.ui.window.rememberWindowState
 import fragments.photoChooser.PhotoChooserFragment
 import fragments.photoEditor.PhotoEditorFragment
 import fragments.result.ResultFragment
+import fragments.settings.Printer
 import fragments.settings.SettingFragment
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import java.io.File
 
+@ExperimentalMaterialApi
 @ExperimentalComposeUiApi
 @ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
 fun main() = application {
     var fragment by remember { mutableStateOf(Fragments.SETTINGS) }
-    var settings by remember { mutableStateOf(InfoSettings(null, null, null, null, null)) }
+    var settings by remember { mutableStateOf<InfoSettings?>(null) }
     var selectedPhoto by remember { mutableStateOf(File("")) }
     var renewEditor by remember { mutableStateOf(false) }
-    var resultPhotoPath by remember { mutableStateOf("") }
+    var resultPhoto by remember { mutableStateOf<File?>(null) }
+    var selectedPrinter by remember { mutableStateOf<Printer?>(null) }
+
 
     if (fragment == Fragments.SETTINGS)
         Window(
             title = "Settings",
-            state = rememberWindowState(width = Dp.Unspecified, height = Dp.Unspecified),
+            state = rememberWindowState(width = 1000.dp, height = 750.dp),
             onCloseRequest = ::exitApplication
         ) {
-            SettingFragment(onNextButtonClick = { newSettings ->
+            SettingFragment(onNextButtonClick = { newSettings, printer ->
+                selectedPrinter = printer
                 settings = newSettings
                 fragment = Fragments.WELCOME
             })
@@ -52,12 +58,12 @@ fun main() = application {
             when (fragment) {
                 Fragments.WELCOME ->
                     WelcomeFragment(
-                        textWelcome = settings.textWelcome!!,
+                        textWelcome = settings!!.textWelcome!!,
                         onButtonClick = { fragment = Fragments.PHOTO_CHOOSER })
 
                 Fragments.PHOTO_CHOOSER ->
                     PhotoChooserFragment(
-                        settings = settings,
+                        settings = settings!!,
                         onBackButtonClick = { fragment = Fragments.WELCOME },
                         onNextButtonClick = { photo ->
                             selectedPhoto = photo
@@ -68,14 +74,15 @@ fun main() = application {
                 Fragments.PHOTO_EDITOR -> {
                     PhotoEditorFragment(
                         photo = selectedPhoto,
-                        dirOutput = settings.dirOutput!!,
-                        stickerPath = settings.dirStickers!!,
+                        dirOutput = settings!!.dirOutput!!,
+                        stickerPath = settings!!.dirStickers!!,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_CHOOSER
                             renewEditor = false
                         },
-                        onNextButtonClick = { resPhotoPath ->
-                            resultPhotoPath = resPhotoPath
+                        onNextButtonClick = { resPhoto ->
+                            resultPhoto = resPhoto
+                            sendPhoto(resPhoto, settings!!.botServerAddress!!, settings!!.dirOutput!!)
                             fragment = Fragments.RESULT
                         },
                         renew = renewEditor
@@ -84,7 +91,9 @@ fun main() = application {
 
                 Fragments.RESULT -> {
                     ResultFragment(
-                        photoPath = resultPhotoPath,
+                        photo = resultPhoto!!,
+                        printService = selectedPrinter!!.printService,
+                        settings = settings!!,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_EDITOR
                             renewEditor = true
@@ -102,6 +111,19 @@ fun main() = application {
         }
     }
 }
+
+fun sendPhoto(photo: File, botAddress: String, dirOutput: String) {
+    BotServer.apply {
+        if (!checkUrlInit())
+            initApi(botAddress)
+
+        if (!checkDirInit())
+            initOutputDir(dirOutput)
+
+        sendPhoto(photo)
+    }
+}
+
 
 enum class Fragments {
     SETTINGS,

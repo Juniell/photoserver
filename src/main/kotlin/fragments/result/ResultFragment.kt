@@ -1,21 +1,20 @@
 package fragments.result
 
-import BotServer
+import InfoSettings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
-import androidx.compose.runtime.*
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.res.useResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,29 +27,44 @@ import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.image.BufferedImage
+import java.awt.print.PageFormat
+import java.awt.print.Printable
+import java.awt.print.Printable.NO_SUCH_PAGE
+import java.awt.print.Printable.PAGE_EXISTS
 import java.io.File
 import javax.imageio.ImageIO
-import androidx.compose.ui.res.loadImageBitmap
+import javax.print.DocFlavor
+import javax.print.PrintException
+import javax.print.PrintService
+import javax.print.SimpleDoc
+import javax.print.attribute.HashPrintRequestAttributeSet
+import javax.print.attribute.standard.MediaPrintableArea
+import javax.print.attribute.standard.MediaSize
+import javax.print.attribute.standard.OrientationRequested
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 
 @ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
 @Composable
 fun ResultFragment(
-    photoPath: String,
+    photo: File,
+    printService: PrintService,
+    settings: InfoSettings,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: () -> Unit
 ) {
-    val photo = File(photoPath)
     val idPhoto = photo.nameWithoutExtension
 
-    BotServer().sendPhoto(photo)
-
-    val qrTgm = generateQR(idPhoto, Social.TELEGRAM)
+    val qrTgm = generateQR(idPhoto, Social.TELEGRAM, settings.telegramBotName!!, settings.vkGroupId.toString())
     var qrVk = File("qr_vk.png")
 
     if (!qrVk.exists())
-        qrVk = generateQR(idPhoto, Social.VK)
+        qrVk = generateQR(idPhoto, Social.VK, settings.telegramBotName, settings.vkGroupId.toString())
 
     var qr by remember { mutableStateOf<File?>(qrVk) }
 
@@ -107,6 +121,13 @@ fun ResultFragment(
                         modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
                     )
 
+                    Text(
+                        text = "Вы можете получить фото в течение ${settings.photoLifeTime} суток",
+                        textAlign = TextAlign.Start,
+                        fontSize = 20.sp,
+                        modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
+                    )
+
                     Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
                         val icons = mapOf(
                             useResource("icon/logo_vk.png") { loadImageBitmap(it) } to Social.VK,
@@ -141,6 +162,15 @@ fun ResultFragment(
                             contentScale = ContentScale.Inside,
                             modifier = Modifier.padding(7.dp).width(200.dp).aspectRatio(1f)
                         )
+
+                    //todo количество копий
+                    Button(
+                        onClick = {
+                            printPhoto(loadImageBitmap(photo).toAwtImage(), printService)
+                        }
+                    ) {
+                        Text("Печать")
+                    }
                 }
 
 
@@ -162,13 +192,38 @@ fun ResultFragment(
     }
 }
 
-// todo: Добавить в настройках указание группы вк и чата телеграма
-fun generateQR(photoId: String, social: Social): File {
+fun printPhoto(image: BufferedImage, printService: PrintService) {
+    val job = printService.createPrintJob()
+
+    val printAttributes = HashPrintRequestAttributeSet().apply {
+        if (image.width >= image.height)
+            add(OrientationRequested.LANDSCAPE)
+        else
+            add(OrientationRequested.PORTRAIT)
+
+        val media = MediaSize.findMedia(10F, 15F, MediaSize.INCH)   //todo: брать из настроек
+        val mediaSize = MediaSize.getMediaSizeForName(media)
+        val size = mediaSize.getSize(MediaSize.INCH)
+
+        add(media)
+        add(MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.INCH))
+    }
+
+    val doc = SimpleDoc(ImagePrintable(image), DocFlavor.SERVICE_FORMATTED.PRINTABLE, null)
+
+    try {
+        job.print(doc, printAttributes)
+    } catch (e: PrintException) {
+        e.printStackTrace()
+    }
+}
+
+fun generateQR(photoId: String, social: Social, tgmName: String, vkId: String): File {
     var matrix: BitMatrix? = null
     val qrCodeContent = if (social == Social.TELEGRAM)
-        "tg://resolve?domain=PhotoServerBot&start=$photoId"
+        "tg://resolve?domain=$tgmName&start=$photoId"
     else
-        "vk.me/club94181787"
+        "vk.me/club$vkId"
 
     try {
         matrix = MultiFormatWriter().encode(qrCodeContent, BarcodeFormat.QR_CODE, 400, 400)
@@ -190,4 +245,29 @@ enum class Social {
     VK,
     TELEGRAM,
     EMAIL
+}
+
+class ImagePrintable(private val image: BufferedImage) : Printable {
+    override fun print(g: Graphics, pageFormat: PageFormat, pageIndex: Int): Int {
+        g as Graphics2D
+        g.translate(pageFormat.imageableX.toInt(), pageFormat.imageableY.toInt())
+        if (pageIndex == 0) {
+            val pageWidth = pageFormat.imageableWidth
+            val pageHeight = pageFormat.imageableHeight
+            val imageWidth = image.width
+            val imageHeight = image.height
+
+            val scaleX = pageWidth / imageWidth
+            val scaleY = pageHeight / imageHeight
+            val scaleFactor = min(scaleX, scaleY)
+            g.scale(scaleFactor, scaleFactor)
+            val dx = (pageWidth - imageWidth*scaleFactor) / 2
+            val dy = (pageHeight - imageHeight*scaleFactor) / 2
+
+            g.drawImage(image, (dx / scaleFactor).roundToInt(), (dy / scaleFactor).roundToInt(), null)
+
+            return PAGE_EXISTS
+        }
+        return NO_SUCH_PAGE
+    }
 }

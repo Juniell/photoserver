@@ -45,10 +45,7 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.roundToInt
-import kotlin.math.sin
+import kotlin.math.*
 
 
 private var backStack = BackStack()
@@ -63,7 +60,7 @@ fun PhotoEditorFragment(
     dirOutput: String,
     stickerPath: String,
     onBackButtonClick: () -> Unit,
-    onNextButtonClick: (resPhotoPath: String) -> Unit,
+    onNextButtonClick: (resPhoto: File) -> Unit,
     renew: Boolean = true
 ) {
     if (!renew) {
@@ -135,7 +132,8 @@ fun PhotoEditorFragment(
                             Button(
                                 onClick = {
                                     colorFilter = filter
-                                    val resPhotoPath = savePhoto(imageBitmap, size!!.width, size!!.height, filter, dirOutput)
+                                    val resPhotoPath =
+                                        savePhoto(imageBitmap, size!!.width, size!!.height, filter, dirOutput)
                                     onNextButtonClick(resPhotoPath)
                                 }
                             ) {
@@ -249,6 +247,35 @@ fun Editor(
         brush(Modifier.matchParentSize())
     }
 }
+
+//@ExperimentalFoundationApi
+//@Composable
+//fun EditorCheck(
+//    stack: List<Layer>,
+//    image: ImageBitmap,
+//    colorFilter: ColorFilter?,
+//    onSizeChange: (newSize: IntSize) -> Unit,
+//    brush: @Composable (modifier: Modifier) -> Unit = { }
+//) {
+//    Box(
+//        contentAlignment = Alignment.Center,
+//        modifier = Modifier
+//            .aspectRatio(image.width / image.height.toFloat())
+//            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.FillBounds)
+//            .onSizeChanged {
+//                onSizeChange(it)
+//            }
+//            .clipToBounds()
+//    ) {
+//
+//        Layers(
+//            modifierBrush = Modifier.matchParentSize(),
+//            layers = stack
+//        )
+//
+//        brush(Modifier.matchParentSize())
+//    }
+//}
 
 @ExperimentalFoundationApi
 @Composable
@@ -436,8 +463,9 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                     Image(
                         painter = BitmapPainter(loadImageBitmap(layer.image)),
                         contentDescription = "Sticker",
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .widthIn(0.dp, 300.dp)
+//                            .widthIn(0.dp, 300.dp)
                             .then(modifier),
                     )
                 }
@@ -634,7 +662,22 @@ fun generateId(): String {
 
 @ExperimentalFoundationApi
 @ExperimentalComposeUiApi
-private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter: ColorFilter?, dirOutput: String): String {
+private fun savePhoto(
+    imageBitmap: ImageBitmap,
+    width: Int,
+    height: Int,
+    filter: ColorFilter?,
+    dirOutput: String
+): File {
+//    val newStack = resizeLayers(imageBitmap.width, imageBitmap.height, width, height)
+//    val image = renderComposeScene(imageBitmap.width, imageBitmap.height) {
+//        EditorCheck(
+//            stack = newStack,
+//            image = imageBitmap,
+//            filter,
+//            onSizeChange = {}
+//        )
+//    }
     val image = renderComposeScene(width, height) {
         Editor(
             image = imageBitmap,
@@ -647,11 +690,12 @@ private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter:
     val outputFile = File(path)
 
     outputFile.writeBytes(image.encodeToData()!!.bytes)
-    return outputFile.path
+    return outputFile
 }
 
-//fun resizeLayers(widthOrigPhoto: Int, widthNew: Int): List<Layer> {
-//    println("widthOrigPhoto = $widthOrigPhoto")
+//fun resizeLayers(widthOrigPhoto: Int, heightOrigPhoto: Int, widthNew: Int, heightNew: Int): List<Layer> {
+//    println("widthOrigPhoto = $widthOrigPhoto, heightOrigPhoto = $heightOrigPhoto")
+//    println("widthNew = $widthNew, heightNew = $heightNew")
 //    val scale = widthOrigPhoto / widthNew
 //
 //    val resultLayers = mutableListOf<Layer>()
@@ -660,13 +704,23 @@ private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter:
 //        resultLayers.add(
 //            when (layer) {
 //                // todo: вопрос с path
-//                is BrushLayer -> BrushLayer(layer.path, layer.color, layer.brushSize * scale, layer.name)
+//                is BrushLayer -> BrushLayer(
+//                    layer.path,
+//                    layer.color,
+//                    layer.brushSize * scale,
+//                    layer.name
+//                )
 //
 //                is ImageLayer -> ImageLayer(
 //                    image = layer.image,
-//                    scale = mutableStateOf(layer.scale.value * scale),
+//                    scale = mutableStateOf(layer.scale.value * scale * scale),
 //                    angle = layer.angle,
-//                    offset = mutableStateOf(layer.offset.value * scale.toFloat()),
+//                    offset = mutableStateOf(
+//                        Offset(
+//                            (layer.offset.value.x / widthNew) * widthOrigPhoto,
+//                            (layer.offset.value.y / heightNew) * heightOrigPhoto
+//                        )
+//                    ),
 //                    name = layer.name
 //                )
 //
@@ -674,9 +728,14 @@ private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter:
 //                    text = layer.text,
 //                    color = layer.color,
 //                    fontFamily = layer.fontFamily,
-//                    scale = mutableStateOf(layer.scale.value * scale),
+//                    scale = mutableStateOf(layer.scale.value * scale * scale),
 //                    angle = layer.angle,
-//                    offset = mutableStateOf(layer.offset.value * scale.toFloat()),
+//                    offset = mutableStateOf(
+//                        Offset(
+//                            (layer.offset.value.x / widthNew) * widthOrigPhoto,
+//                            (layer.offset.value.y / heightNew) * heightOrigPhoto
+//                        )
+//                    ),
 //                    name = layer.name
 //                )
 //
@@ -686,3 +745,4 @@ private fun savePhoto(imageBitmap: ImageBitmap, width: Int, height: Int, filter:
 //    }
 //    return resultLayers
 //}
+

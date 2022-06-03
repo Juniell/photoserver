@@ -1,9 +1,9 @@
 package fragments.photoChooser
 
 import InfoSettings
-import Spinnable
-import Spinner
-import SpinnerModifier
+import components.Spinnable
+import components.Spinner
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -42,6 +42,7 @@ import javax.imageio.ImageIO
 
 const val DIR_MINIS = "minis"
 
+@ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
 @Composable
 fun PhotoChooserFragment(
@@ -65,7 +66,7 @@ fun PhotoChooserFragment(
     var filteredFiles by remember { mutableStateOf(files.sortedBy { it.lastModified() }.reversed()) }
     val filesMinisMap = (File(pathMinis).listFiles()?.toList() ?: listOf()).associateBy { it.name }
 
-    val selectedFilter = remember { mutableStateOf<Spinnable>(Filters.NEW_FIRST) }
+    var selectedFilter by remember { mutableStateOf<Spinnable>(Filters.NEW_FIRST) }
     var chooserTimeRangeOn by remember { mutableStateOf(false) }
     val timeFirst = remember { mutableStateOf(0) }
     val timeSecond = remember { mutableStateOf(24) }
@@ -131,22 +132,20 @@ fun PhotoChooserFragment(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Spinner(
-                                Filters.values().toList(),
-                                selectedValue = selectedFilter,
-                                onSelected = {
-                                    filteredFiles = when (selectedFilter.value) {
+                                data = Filters.values().toList(),
+                                value = selectedFilter,
+                                onSelected = { selectedElement: Spinnable ->
+                                    selectedFilter = selectedElement
+                                    filteredFiles = when (selectedFilter) {
                                         Filters.OLD_FIRST ->
                                             files.sortedBy { it.lastModified() }
                                         else ->
                                             files.sortedBy { it.lastModified() }.reversed()
                                     }.toMutableList()
                                 },
-                                SpinnerModifier(
                                     width = 300.dp,
                                     padding = PaddingValues(7.dp),
-                                    height = 55.dp,
                                     textFontSize = 20.sp
-                                )
                             )
 
                             Button(
