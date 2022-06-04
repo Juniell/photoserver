@@ -38,8 +38,6 @@ import androidx.compose.ui.unit.sp
 import com.godaddy.android.colorpicker.harmony.ColorHarmonyMode
 import com.godaddy.android.colorpicker.harmony.HarmonyColorPicker
 import components.LazyGrid
-import fragments.photoEditor.SliderWithName
-import fragments.photoEditor.SlidersSizeAngle
 import io.kamel.core.config.KamelConfig
 import io.kamel.core.config.takeFrom
 import io.kamel.image.KamelImage

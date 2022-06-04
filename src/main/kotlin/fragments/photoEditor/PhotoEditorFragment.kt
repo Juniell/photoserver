@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import fragments.photoChooser.DIR_MINIS
 import fragments.photoEditor.components.EditorToolbar
+import fragments.photoEditor.components.SlidersSizeAngle
 import fragments.photoEditor.components.TEXT_FONT_SIZE
 import fragments.photoEditor.components.Tools
 import loadImageBitmap
@@ -328,99 +329,6 @@ fun Editor(
     )
 }
 
-@Composable
-fun SliderWithName(
-    name: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    onValueChange: (newValue: Float) -> Unit,
-    onValueChangeFinished: (Value: Float) -> Unit = {}
-) {
-    var sliderValue by remember { mutableStateOf(value) }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.wrapContentSize()
-            .padding(5.dp)
-    ) {
-        Text(name)
-
-        Slider(
-            value = sliderValue,
-            valueRange = valueRange,
-            onValueChange = {
-                sliderValue = it
-                onValueChange(it)
-            },
-            onValueChangeFinished = {
-                onValueChangeFinished(sliderValue)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-fun SlidersSizeAngle(
-    modifier: Modifier = Modifier,
-    startScale: Float,
-    startAngle: Float,
-    onScaleChange: (newScale: Float) -> Unit,
-    onAngleChange: (newAngle: Float) -> Unit,
-    onChangeFinished: () -> Unit = {}
-) {
-    Column(modifier = modifier.fillMaxWidth())
-    {
-        SliderWithName(
-            name = "Поворот",
-            value = startAngle,
-            valueRange = -180f..180f,
-            onValueChange = { onAngleChange(it) },
-            onValueChangeFinished = { onChangeFinished() }
-        )
-
-        SliderWithName(
-            name = "Размер ",
-            value = startScale,
-            valueRange = 0.3f..2f,
-            onValueChange = { onScaleChange(it) },
-            onValueChangeFinished = { onChangeFinished() }
-        )
-    }
-}
-
-@Composable
-fun PopupAngleSizeMenu(
-    modifier: Modifier,
-    startAngle: Float,
-    startScale: Float,
-    onAngleChange: (newAngle: Float) -> Unit,
-    onScaleChange: (newScale: Float) -> Unit,
-    onChangeFinished: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Box(modifier = modifier) {
-        Popup(onDismissRequest = { onDismiss() }, focusable = true) {
-            Card(
-                elevation = 5.dp,
-                backgroundColor = Color.White,
-                shape = RoundedCornerShape(5.dp)
-            ) {
-                SlidersSizeAngle(
-                    modifier = Modifier.width(300.dp),
-                    startScale = startScale,
-                    startAngle = startAngle,
-                    onScaleChange = onScaleChange,
-                    onAngleChange = onAngleChange,
-                    onChangeFinished = onChangeFinished
-                )
-            }
-        }
-    }
-}
-
-
 @ExperimentalFoundationApi
 @Composable
 fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabled: Boolean = true) {
@@ -503,6 +411,36 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                         modifier = modifier
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun PopupAngleSizeMenu(
+    modifier: Modifier,
+    startAngle: Float,
+    startScale: Float,
+    onAngleChange: (newAngle: Float) -> Unit,
+    onScaleChange: (newScale: Float) -> Unit,
+    onChangeFinished: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(modifier = modifier) {
+        Popup(onDismissRequest = { onDismiss() }, focusable = true) {
+            Card(
+                elevation = 5.dp,
+                backgroundColor = Color.White,
+                shape = RoundedCornerShape(5.dp)
+            ) {
+                SlidersSizeAngle(
+                    modifier = Modifier.width(300.dp),
+                    startScale = startScale,
+                    startAngle = startAngle,
+                    onScaleChange = onScaleChange,
+                    onAngleChange = onAngleChange,
+                    onChangeFinished = onChangeFinished
+                )
             }
         }
     }
@@ -668,7 +606,7 @@ private fun Offset.rotateBy(angle: Float): Offset {
     )
 }
 
-fun generateId(): String {
+private fun generateId(): String {
     val time = System.currentTimeMillis() / 1000
     val base = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     val b = 62L

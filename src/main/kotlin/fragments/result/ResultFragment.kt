@@ -171,7 +171,6 @@ fun ResultFragment(
                             contentDescription = null,
                             contentScale = ContentScale.Inside,
                             modifier = Modifier
-//                                .padding(7.dp)
                                 .fillMaxWidth(0.6f)
                                 .aspectRatio(1f)
                         )
@@ -250,33 +249,6 @@ fun ResultFragment(
     }
 }
 
-fun printPhoto(image: BufferedImage, printService: PrintService, paperSize: MediaSizeName, copiesNum: Int) {
-    val job = printService.createPrintJob()
-
-    val printAttributes = HashPrintRequestAttributeSet().apply {
-        if (image.width >= image.height)
-            add(OrientationRequested.LANDSCAPE)
-        else
-            add(OrientationRequested.PORTRAIT)
-
-        val mediaSize = MediaSize.getMediaSizeForName(paperSize)
-        val size = mediaSize.getSize(MediaSize.MM)
-
-        add(paperSize)
-        add(MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.MM))
-        add(Copies(copiesNum))
-    }
-
-    val doc = SimpleDoc(ImagePrintable(image), DocFlavor.SERVICE_FORMATTED.PRINTABLE, null)
-
-    try {
-        job.print(doc, printAttributes)
-    } catch (e: PrintException) {
-        e.printStackTrace()
-    }
-
-}
-
 fun generateAndSaveQr(photoId: String, social: Social, socialName: String): ImageBitmap {
     val image = generateQR(photoId, social, socialName)
     val qrName = if (social == Social.VK) "qr_vk.png" else "qr_tgm.png"
@@ -306,10 +278,31 @@ fun generateQR(photoId: String, social: Social, socialName: String): ImageBitmap
     return MatrixToImageWriter.toBufferedImage(matrix).toComposeImageBitmap()
 }
 
-enum class Social {
-    VK,
-    TELEGRAM,
-    EMAIL
+fun printPhoto(image: BufferedImage, printService: PrintService, paperSize: MediaSizeName, copiesNum: Int) {
+    val job = printService.createPrintJob()
+
+    val printAttributes = HashPrintRequestAttributeSet().apply {
+        if (image.width >= image.height)
+            add(OrientationRequested.LANDSCAPE)
+        else
+            add(OrientationRequested.PORTRAIT)
+
+        val mediaSize = MediaSize.getMediaSizeForName(paperSize)
+        val size = mediaSize.getSize(MediaSize.MM)
+
+        add(paperSize)
+        add(MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.MM))
+        add(Copies(copiesNum))
+    }
+
+    val doc = SimpleDoc(ImagePrintable(image), DocFlavor.SERVICE_FORMATTED.PRINTABLE, null)
+
+    try {
+        job.print(doc, printAttributes)
+    } catch (e: PrintException) {
+        e.printStackTrace()
+    }
+
 }
 
 class ImagePrintable(private val image: BufferedImage) : Printable {
@@ -335,4 +328,10 @@ class ImagePrintable(private val image: BufferedImage) : Printable {
         }
         return NO_SUCH_PAGE
     }
+}
+
+enum class Social {
+    VK,
+    TELEGRAM,
+    EMAIL
 }
