@@ -45,7 +45,12 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
-import kotlin.math.*
+import javax.print.attribute.standard.MediaSize
+import javax.print.attribute.standard.MediaSizeName
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 
 private var backStack = BackStack()
@@ -59,6 +64,7 @@ fun PhotoEditorFragment(
     photo: File,
     dirOutput: String,
     stickerPath: String,
+    paperSize: MediaSizeName,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: (resPhoto: File) -> Unit,
     renew: Boolean = true
@@ -133,7 +139,14 @@ fun PhotoEditorFragment(
                                 onClick = {
                                     colorFilter = filter
                                     val resPhotoPath =
-                                        savePhoto(imageBitmap, size!!.width, size!!.height, filter, dirOutput)
+                                        savePhoto(
+                                            imageBitmap,
+                                            paperSize,
+                                            size!!.width,
+                                            size!!.height,
+                                            filter,
+                                            dirOutput
+                                        )
                                     onNextButtonClick(resPhotoPath)
                                 }
                             ) {
@@ -149,6 +162,7 @@ fun PhotoEditorFragment(
                     ) {
                         Editor(
                             image = imageBitmap,
+                            paperSize = paperSize,
                             colorFilter = filter,
                             selectedColor = selectedColor,
                             selectedTools = selectedTools,
@@ -222,21 +236,26 @@ fun PhotoEditorFragment(
 
 @ExperimentalFoundationApi
 @Composable
-fun Editor(
+private fun Editor(
     image: ImageBitmap,
+    paperSize: MediaSizeName,
     colorFilter: ColorFilter?,
     onSizeChange: (newSize: IntSize) -> Unit,
     brush: @Composable (modifier: Modifier) -> Unit = { }
 ) {
+    val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .aspectRatio(image.width / image.height.toFloat())
-            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.FillBounds)
+            .clipToBounds()
+            .aspectRatio(if (image.height > image.width) size[0] / size[1] else size[1] / size[0])
+            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.Crop)
             .onSizeChanged {
                 onSizeChange(it)
             }
-            .clipToBounds()
+            .then(if (image.width > image.height)
+                Modifier.fillMaxWidth() else Modifier.fillMaxHeight())
     ) {
 
         Layers(
@@ -253,15 +272,18 @@ fun Editor(
 //fun EditorCheck(
 //    stack: List<Layer>,
 //    image: ImageBitmap,
+//    paperSize: MediaSizeName,
 //    colorFilter: ColorFilter?,
 //    onSizeChange: (newSize: IntSize) -> Unit,
 //    brush: @Composable (modifier: Modifier) -> Unit = { }
 //) {
+//    val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
+//
 //    Box(
 //        contentAlignment = Alignment.Center,
 //        modifier = Modifier
-//            .aspectRatio(image.width / image.height.toFloat())
-//            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.FillBounds)
+//            .aspectRatio(if (image.height > image.width) size[0] / size[1] else size[1] / size[0])
+//            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.Crop)
 //            .onSizeChanged {
 //                onSizeChange(it)
 //            }
@@ -281,6 +303,7 @@ fun Editor(
 @Composable
 fun Editor(
     image: ImageBitmap,
+    paperSize: MediaSizeName,
     colorFilter: ColorFilter?,
     selectedColor: Color,
     selectedTools: Tools,
@@ -290,6 +313,7 @@ fun Editor(
 ) {
     Editor(
         image = image,
+        paperSize = paperSize,
         colorFilter = colorFilter,
         onSizeChange = onSizeChange,
         brush = { modifier ->
@@ -664,27 +688,39 @@ fun generateId(): String {
 @ExperimentalComposeUiApi
 private fun savePhoto(
     imageBitmap: ImageBitmap,
+    paperSize: MediaSizeName,
     width: Int,
     height: Int,
     filter: ColorFilter?,
     dirOutput: String
 ): File {
 //    val newStack = resizeLayers(imageBitmap.width, imageBitmap.height, width, height)
-//    val image = renderComposeScene(imageBitmap.width, imageBitmap.height) {
-//        EditorCheck(
-//            stack = newStack,
+
+    val image = renderComposeScene(width, height) {
+        Box {
+            Editor(
+                image = imageBitmap,
+                colorFilter = filter,
+                paperSize = paperSize,
+                onSizeChange = {}
+            ) {
+                Image(
+                    bitmap = loadImageBitmap(File("frame.png")),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.size(width.dp, height.dp)
+                )
+            }
+        }
+    }
+
+//    val image = renderComposeScene(width, height) {
+//        Editor(
 //            image = imageBitmap,
 //            filter,
 //            onSizeChange = {}
 //        )
 //    }
-    val image = renderComposeScene(width, height) {
-        Editor(
-            image = imageBitmap,
-            filter,
-            onSizeChange = {}
-        )
-    }
 
     val path = dirOutput + File.separator + generateId() + ".jpg"
     val outputFile = File(path)

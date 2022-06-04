@@ -17,6 +17,7 @@ import fragments.settings.Printer
 import fragments.settings.SettingFragment
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import java.io.File
+import javax.print.attribute.standard.MediaSizeName
 
 @ExperimentalMaterialApi
 @ExperimentalComposeUiApi
@@ -29,6 +30,8 @@ fun main() = application {
     var renewEditor by remember { mutableStateOf(false) }
     var resultPhoto by remember { mutableStateOf<File?>(null) }
     var selectedPrinter by remember { mutableStateOf<Printer?>(null) }
+    var vkChange by remember { mutableStateOf(false) }
+    var paperSize by remember { mutableStateOf<MediaSizeName?>(null) }
 
 
     if (fragment == Fragments.SETTINGS)
@@ -37,9 +40,11 @@ fun main() = application {
             state = rememberWindowState(width = 1000.dp, height = 750.dp),
             onCloseRequest = ::exitApplication
         ) {
-            SettingFragment(onNextButtonClick = { newSettings, printer ->
-                selectedPrinter = printer
+            SettingFragment(onNextButtonClick = { newSettings, printer, paperSizeName, vkGroupChange ->
                 settings = newSettings
+                selectedPrinter = printer
+                paperSize = paperSizeName
+                vkChange = vkGroupChange
                 fragment = Fragments.WELCOME
             })
         }
@@ -76,6 +81,7 @@ fun main() = application {
                         photo = selectedPhoto,
                         dirOutput = settings!!.dirOutput!!,
                         stickerPath = settings!!.dirStickers!!,
+                        paperSize = paperSize!!,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_CHOOSER
                             renewEditor = false
@@ -93,7 +99,9 @@ fun main() = application {
                     ResultFragment(
                         photo = resultPhoto!!,
                         printService = selectedPrinter!!.printService,
+                        paperSize = paperSize!!,
                         settings = settings!!,
+                        vkGroupChange = vkChange,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_EDITOR
                             renewEditor = true

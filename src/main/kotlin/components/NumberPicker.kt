@@ -32,6 +32,7 @@ fun NumberPicker(
     modifier: Modifier = Modifier,
     state: MutableState<Int>,
     range: IntRange = 0..2,
+    timeFormat: Boolean = true,
     spacing: Dp = 0.dp,
     animationHeight: Dp = 50.dp,
     width: Dp = 50.dp,
@@ -109,7 +110,7 @@ fun NumberPicker(
                 .height(animationHeight)
         ) {
             val baseLabelModifier = Modifier.align(Alignment.Center)
-            val textFormat = "%02d:00"
+            val textFormat = if (timeFormat)"%02d:00" else "%d"
             ProvideTextStyle(textStyle) {
                 Label(
                     text = String.format(textFormat, animatedStateValue - 1),

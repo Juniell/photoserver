@@ -66,7 +66,9 @@ private val textStyle = TextStyle(fontSize = 18.sp)
 @ExperimentalMaterialApi
 @ExperimentalFoundationApi
 @Composable
-fun SettingFragment(onNextButtonClick: (newSettings: InfoSettings, printer: Printer) -> Unit) {
+fun SettingFragment(
+    onNextButtonClick: (newSettings: InfoSettings, printer: Printer, paperSize: MediaSizeName, vkChange: Boolean) -> Unit
+) {
     val printServices = PrintServiceLookup.lookupPrintServices(null, null)
     val printerList = printServices.map { it.name }
 
@@ -214,8 +216,10 @@ fun SettingFragment(onNextButtonClick: (newSettings: InfoSettings, printer: Prin
                                     )
                                 }
                             } else {
+                                val vkGroupChange = settings?.vkGroupId != newSettings.vkGroupId
+
                                 writeDatabase(newSettings, settings == null)
-                                onNextButtonClick(newSettings, printer!!)
+                                onNextButtonClick(newSettings, printer!!, paperSize!!, vkGroupChange)
                             }
                         }
                     ) {
@@ -594,7 +598,7 @@ fun SettingsPrint(
 
     var paperSizeList by remember { mutableStateOf(printer?.getPaperSizeList()) }
     var frameFile by remember { mutableStateOf(if (!photoFramePath.isNullOrEmpty()) File(photoFramePath) else null) }
-    var frameNeed by remember { mutableStateOf(true) }
+    var frameNeed by remember { mutableStateOf(photoFramePath != null) }
 
     fun checkFrameError() = if (frameNeed)
         !(frameFile != null && frameFile!!.exists() && frameFile!!.isFile && frameFile!!.extension == "png")
@@ -667,6 +671,7 @@ fun SettingsPrint(
                         onCheckedChange = {
                             copiesEnabled = it
                             copiesNum = if (it) 2f else 1f
+                            onPhotoCopiesChange(copiesNum.toInt())
                         },
                         modifier = Modifier.padding(end = 10.dp)
                     )
@@ -732,7 +737,7 @@ fun SettingsPrint(
                 val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
 
                 Text(
-                    text = "Рамка",
+                    text = "Пример (${size[0]}mm x ${size[1]}mm)",
                     fontSize = 20.sp,
                     modifier = Modifier.padding(bottom = 15.dp)
                 )
