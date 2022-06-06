@@ -12,35 +12,26 @@ import fragments.settings.*
 import java.io.File
 
 @Composable
-fun SettingsGeneral(
-    textWelcome: String?,
-    dirInput: String?,
-    dirOutput: String?,
-    dirStickers: String?,
-    onTextWelcomeChange: (text: String) -> Unit,
-    onDirInputChange: (dirInput: String) -> Unit,
-    onDirOutputChange: (dirOutput: String) -> Unit,
-    onDirStickersChange: (dirStickers: String) -> Unit,
-) {
+fun SettingsGeneral() {
     Row {
         Column(
             modifier = Modifier
-                .width(elWidth + 2 * 5.dp)
+                .width(elWidth + 2 * 5.dp)  //todo: пофиксить
                 .wrapContentHeight()
                 .padding(20.dp)
         ) {
-            Text(
-                text = "Текст приветствия",
-                fontSize = 20.sp,
-                modifier = Modifier
-                    .padding(start = 5.dp, bottom = 10.dp)
-            )
 
             OutlinedTextField(
-                value = textWelcome ?: "",
+                label = {
+                    Text(
+                        text = "Текст приветствия",
+                        fontSize = 15.sp,
+                    )
+                },
+                value = Settings.textWelcome.value,
                 maxLines = 5,
                 textStyle = textStyle,
-                onValueChange = { onTextWelcomeChange(it) },
+                onValueChange = { Settings.textWelcome.value = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(elHeight * 5.6f / 2)
@@ -51,9 +42,9 @@ fun SettingsGeneral(
                 mode = PathChooserMode.DIR,
                 title = "Директория исходных фотографий",
                 dialogTitle = "Выбор директории исходных фото",
-                file = File(dirInput ?: "."),
+                file = File(Settings.dirInput.value),
                 textStyle = textStyle,
-                onDirChoose = onDirInputChange,
+                onDirChoose = { Settings.dirInput.value = it },
                 modifier = Modifier.padding(bottom = 15.dp)
             )
 
@@ -61,9 +52,9 @@ fun SettingsGeneral(
                 mode = PathChooserMode.DIR,
                 title = "Директория готовых фотографий",
                 dialogTitle = "Выбор директории готовых фото",
-                file = File(dirOutput ?: "."),
+                file = File(Settings.dirOutput.value),
                 textStyle = textStyle,
-                onDirChoose = onDirOutputChange,
+                onDirChoose = { Settings.dirOutput.value = it },
                 modifier = Modifier.padding(bottom = 15.dp)
             )
 
@@ -71,9 +62,9 @@ fun SettingsGeneral(
                 mode = PathChooserMode.DIR,
                 title = "Директория стикеров",
                 dialogTitle = "Выбор директории стикеров",
-                file = File(dirStickers ?: "."),
+                file = File(Settings.dirStickers.value),
                 textStyle = textStyle,
-                onDirChoose = onDirStickersChange,
+                onDirChoose = { Settings.dirStickers.value = it },
                 modifier = Modifier.padding(bottom = 15.dp)
             )
         }

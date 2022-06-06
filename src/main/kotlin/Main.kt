@@ -13,11 +13,10 @@ import androidx.compose.ui.window.rememberWindowState
 import fragments.photoChooser.PhotoChooserFragment
 import fragments.photoEditor.PhotoEditorFragment
 import fragments.result.ResultFragment
-import fragments.settings.Printer
 import fragments.settings.SettingFragment
+import fragments.welcome.WelcomeFragment
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import java.io.File
-import javax.print.attribute.standard.MediaSizeName
 
 @ExperimentalMaterialApi
 @ExperimentalComposeUiApi
@@ -25,14 +24,8 @@ import javax.print.attribute.standard.MediaSizeName
 @ExperimentalSplitPaneApi
 fun main() = application {
     var fragment by remember { mutableStateOf(Fragments.SETTINGS) }
-    var settings by remember { mutableStateOf<InfoSettings?>(null) }
-    var selectedPhoto by remember { mutableStateOf(File("")) }
     var renewEditor by remember { mutableStateOf(false) }
     var resultPhoto by remember { mutableStateOf<File?>(null) }
-    var selectedPrinter by remember { mutableStateOf<Printer?>(null) }
-    var vkChange by remember { mutableStateOf(false) }
-    var paperSize by remember { mutableStateOf<MediaSizeName?>(null) }
-
 
     if (fragment == Fragments.SETTINGS)
         Window(
@@ -40,13 +33,11 @@ fun main() = application {
             state = rememberWindowState(width = 1000.dp, height = 750.dp),
             onCloseRequest = ::exitApplication
         ) {
-            SettingFragment(onNextButtonClick = { newSettings, printer, paperSizeName, vkGroupChange ->
-                settings = newSettings
-                selectedPrinter = printer
-                paperSize = paperSizeName
-                vkChange = vkGroupChange
-                fragment = Fragments.WELCOME
-            })
+            SettingFragment(
+                onNextButtonClick = {
+                    fragment = Fragments.WELCOME
+                }
+            )
         }
     else {
         Window(
@@ -54,41 +45,30 @@ fun main() = application {
             state = rememberWindowState(WindowPlacement.Maximized/*Fullscreen*/),
             onCloseRequest = ::exitApplication
         ) {
-//            Box(
-//                modifier = Modifier.paint(
-//                    BitmapPainter(loadImageBitmap(File("background1.jpg"))),
-//                    contentScale = ContentScale.FillBounds
-//                )
-//            ) {
+
             when (fragment) {
                 Fragments.WELCOME ->
                     WelcomeFragment(
-                        textWelcome = settings!!.textWelcome!!,
                         onButtonClick = { fragment = Fragments.PHOTO_CHOOSER })
 
                 Fragments.PHOTO_CHOOSER ->
                     PhotoChooserFragment(
-                        settings = settings!!,
                         onBackButtonClick = { fragment = Fragments.WELCOME },
-                        onNextButtonClick = { photo ->
-                            selectedPhoto = photo
+                        onNextButtonClick = {
                             fragment = Fragments.PHOTO_EDITOR
                         }
                     )
 
                 Fragments.PHOTO_EDITOR -> {
                     PhotoEditorFragment(
-                        photo = selectedPhoto,
-                        dirOutput = settings!!.dirOutput!!,
-                        stickerPath = settings!!.dirStickers!!,
-                        paperSize = paperSize!!,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_CHOOSER
                             renewEditor = false
                         },
                         onNextButtonClick = { resPhoto ->
                             resultPhoto = resPhoto
-                            sendPhoto(resPhoto, settings!!.botServerAddress!!, settings!!.dirOutput!!)
+                            if (Settings.botNeed.value)
+                                sendPhoto(resPhoto, Settings.botServerAddress.value, Settings.dirOutput.value)
                             fragment = Fragments.RESULT
                         },
                         renew = renewEditor
@@ -98,10 +78,6 @@ fun main() = application {
                 Fragments.RESULT -> {
                     ResultFragment(
                         photo = resultPhoto!!,
-                        printService = selectedPrinter!!.printService,
-                        paperSize = paperSize!!,
-                        settings = settings!!,
-                        vkGroupChange = vkChange,
                         onBackButtonClick = {
                             fragment = Fragments.PHOTO_EDITOR
                             renewEditor = true
@@ -115,12 +91,11 @@ fun main() = application {
 
                 else -> {}
             }
-//            }
         }
     }
 }
 
-fun sendPhoto(photo: File, botAddress: String, dirOutput: String) {
+private fun sendPhoto(photo: File, botAddress: String, dirOutput: String) {
     BotServer.apply {
         if (!checkUrlInit())
             initApi(botAddress)
@@ -131,7 +106,6 @@ fun sendPhoto(photo: File, botAddress: String, dirOutput: String) {
         sendPhoto(photo)
     }
 }
-
 
 enum class Fragments {
     SETTINGS,

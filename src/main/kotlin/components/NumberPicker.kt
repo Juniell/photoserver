@@ -4,7 +4,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
@@ -150,11 +148,7 @@ fun NumberPicker(
 private fun Label(text: String, modifier: Modifier) {
     Text(
         text = text,
-        modifier = modifier.pointerInput(Unit) {
-            detectTapGestures(onLongPress = {
-                // FIXME: Empty to disable text selection
-            })
-        }
+        modifier = modifier
     )
 }
 

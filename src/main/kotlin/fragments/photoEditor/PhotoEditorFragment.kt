@@ -1,7 +1,8 @@
 package fragments.photoEditor
 
+import Settings
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.*
@@ -38,6 +40,8 @@ import fragments.photoEditor.components.EditorToolbar
 import fragments.photoEditor.components.SlidersSizeAngle
 import fragments.photoEditor.components.TEXT_FONT_SIZE
 import fragments.photoEditor.components.Tools
+import fragments.settings.components.getRatio
+import kotlinx.coroutines.launch
 import loadImageBitmap
 import org.burnoutcrew.reorderable.*
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
@@ -46,8 +50,6 @@ import org.jetbrains.compose.splitpane.VerticalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import org.jetbrains.skia.Canvas
 import java.io.File
-import javax.print.attribute.standard.MediaSize
-import javax.print.attribute.standard.MediaSizeName
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -62,10 +64,6 @@ private var colorFilter: ColorFilter? = null
 @ExperimentalComposeUiApi
 @Composable
 fun PhotoEditorFragment(
-    photo: File,
-    dirOutput: String,
-    stickerPath: String,
-    paperSize: MediaSizeName,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: (resPhoto: File) -> Unit,
     renew: Boolean = true
@@ -80,7 +78,7 @@ fun PhotoEditorFragment(
     var brushSize by remember { mutableStateOf(10f) }
     var filter by remember { mutableStateOf(colorFilter) }
     var size: IntSize? = null
-    val imageBitmap = loadImageBitmap(photo)
+    val imageBitmap = loadImageBitmap(Settings.selectedPhoto)
 
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(
@@ -142,11 +140,9 @@ fun PhotoEditorFragment(
                                     val resPhotoPath =
                                         savePhoto(
                                             imageBitmap,
-                                            paperSize,
                                             size!!.width,
                                             size!!.height,
                                             filter,
-                                            dirOutput
                                         )
                                     onNextButtonClick(resPhotoPath)
                                 }
@@ -163,7 +159,6 @@ fun PhotoEditorFragment(
                     ) {
                         Editor(
                             image = imageBitmap,
-                            paperSize = paperSize,
                             colorFilter = filter,
                             selectedColor = selectedColor,
                             selectedTools = selectedTools,
@@ -190,8 +185,8 @@ fun PhotoEditorFragment(
                         modifier = Modifier.padding(5.dp, 0.dp),
                         selectedTools = selectedTools,
                         selectedColor = selectedColor,
-                        photoMini = File(photo.parent + File.separator + DIR_MINIS + File.separator + photo.name),
-                        stickerPath = stickerPath,
+                        photoMini = File(Settings.selectedPhoto.parent + File.separator + DIR_MINIS + File.separator + Settings.selectedPhoto.name),
+                        stickerPath = Settings.dirStickers.value,
                         onColorChange = { newColor: Color -> selectedColor = newColor },
                         onChooseFilter = { selectedFilter: ColorFilter? -> filter = selectedFilter },
                         onBrushSizeChange = { newSize: Float -> brushSize = newSize },
@@ -239,24 +234,25 @@ fun PhotoEditorFragment(
 @Composable
 private fun Editor(
     image: ImageBitmap,
-    paperSize: MediaSizeName,
     colorFilter: ColorFilter?,
     onSizeChange: (newSize: IntSize) -> Unit,
     brush: @Composable (modifier: Modifier) -> Unit = { }
 ) {
-    val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
+    val ratio = getRatio(image, Settings.paper)
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .clipToBounds()
-            .aspectRatio(if (image.height > image.width) size[0] / size[1] else size[1] / size[0])
+            .aspectRatio(ratio.first / ratio.second)
             .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.Crop)
             .onSizeChanged {
                 onSizeChange(it)
             }
-            .then(if (image.width > image.height)
-                Modifier.fillMaxWidth() else Modifier.fillMaxHeight())
+            .then(
+                if (image.width > image.height)
+                    Modifier.fillMaxWidth() else Modifier.fillMaxHeight()
+            )
     ) {
 
         Layers(
@@ -304,7 +300,6 @@ private fun Editor(
 @Composable
 fun Editor(
     image: ImageBitmap,
-    paperSize: MediaSizeName,
     colorFilter: ColorFilter?,
     selectedColor: Color,
     selectedTools: Tools,
@@ -314,7 +309,6 @@ fun Editor(
 ) {
     Editor(
         image = image,
-        paperSize = paperSize,
         colorFilter = colorFilter,
         onSizeChange = onSizeChange,
         brush = { modifier ->
@@ -397,7 +391,6 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
                         contentDescription = "Sticker",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-//                            .widthIn(0.dp, 300.dp)
                             .then(modifier),
                     )
                 }
@@ -452,27 +445,36 @@ fun LayersList(
     onLayersOrderChanged: (ItemPosition, ItemPosition) -> Unit,
     onDeleteLayer: (layerIndex: Int) -> Unit
 ) {
-    //todo: добавить скрооллбар
     val state = rememberReorderState()
+    val coroutineScope = rememberCoroutineScope()
 
     LazyColumn(
         state = state.listState,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(8.dp),
         modifier = Modifier
+            .draggable(
+                orientation = Orientation.Vertical,
+                state = rememberDraggableState { delta ->
+                    coroutineScope.launch {
+                        state.listState.scrollBy(-delta)
+                    }
+                },
+            )
             .reorderable(
                 state = state,
                 onMove = onLayersOrderChanged
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(8.dp),
+            )
     ) {
         itemsIndexed(layersList) { idx, item ->
             Card(
                 modifier = Modifier
                     .draggedItem(state.offsetByIndex(idx))
-                    .detectReorder(state)
                     .fillParentMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
                     Row {
                         if (item is BrushLayer || item is TextLayer) {
                             val color = when (item) {
@@ -502,13 +504,27 @@ fun LayersList(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = null,
-                        modifier = Modifier.clickable {
-                            onDeleteLayer(idx)
-                        }
-                    )
+                    Row (horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            tint = Color.DarkGray,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clickable {
+                                onDeleteLayer(idx)
+                            }
+                        )
+
+                        Icon(
+                            imageVector = Icons.Outlined.DragHandle,
+                            tint = Color.DarkGray,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(30.dp)
+                                .detectReorder(state)
+                        )
+                    }
                 }
             }
         }
@@ -626,31 +642,29 @@ private fun generateId(): String {
 @ExperimentalComposeUiApi
 private fun savePhoto(
     imageBitmap: ImageBitmap,
-    paperSize: MediaSizeName,
     width: Int,
     height: Int,
     filter: ColorFilter?,
-    dirOutput: String
 ): File {
-//    val newStack = resizeLayers(imageBitmap.width, imageBitmap.height, width, height)
-
     val image = renderComposeScene(width, height) {
         Box {
             Editor(
                 image = imageBitmap,
                 colorFilter = filter,
-                paperSize = paperSize,
                 onSizeChange = {}
             ) {
-                Image(
-                    bitmap = loadImageBitmap(File("frame.png")),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.size(width.dp, height.dp)
-                )
+                if (Settings.frameNeed.value)
+                    Image(
+                        bitmap = loadImageBitmap(File(Settings.photoFramePath.value)),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.matchParentSize().zIndex((BACKSTACK_MAX_INDEX + 1).toFloat())
+                    )
             }
         }
     }
+
+//    val newStack = resizeLayers(imageBitmap.width, imageBitmap.height, width, height)
 
 //    val image = renderComposeScene(width, height) {
 //        Editor(
@@ -660,7 +674,7 @@ private fun savePhoto(
 //        )
 //    }
 
-    val path = dirOutput + File.separator + generateId() + ".jpg"
+    val path = Settings.dirOutput.value + File.separator + generateId() + ".jpg"
     val outputFile = File(path)
 
     outputFile.writeBytes(image.encodeToData()!!.bytes)

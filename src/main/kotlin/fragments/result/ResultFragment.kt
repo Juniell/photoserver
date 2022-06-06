@@ -1,12 +1,13 @@
 package fragments.result
 
-import InfoSettings
+import Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.LocalTextStyle
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,10 @@ import com.google.zxing.MultiFormatWriter
 import com.google.zxing.client.j2se.MatrixToImageWriter
 import com.google.zxing.common.BitMatrix
 import components.NumberPicker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
@@ -44,10 +49,12 @@ import java.util.*
 import javax.imageio.ImageIO
 import javax.print.DocFlavor
 import javax.print.PrintException
-import javax.print.PrintService
 import javax.print.SimpleDoc
 import javax.print.attribute.HashPrintRequestAttributeSet
-import javax.print.attribute.standard.*
+import javax.print.attribute.standard.Copies
+import javax.print.attribute.standard.MediaPrintableArea
+import javax.print.attribute.standard.MediaSize
+import javax.print.attribute.standard.OrientationRequested
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -57,25 +64,34 @@ import kotlin.math.roundToInt
 @Composable
 fun ResultFragment(
     photo: File,
-    printService: PrintService,
-    paperSize: MediaSizeName,
-    settings: InfoSettings,
-    vkGroupChange: Boolean,
     onBackButtonClick: () -> Unit,
     onNextButtonClick: () -> Unit
 ) {
     val idPhoto = photo.nameWithoutExtension
-    val qrTgm = generateQR(idPhoto, Social.TELEGRAM, settings.telegramBotName!!)
+
+    val qrTgm = if (Settings.botNeed.value)
+        generateQR(idPhoto, Social.TELEGRAM, Settings.telegramBotName.value)
+    else
+        null
+
     val qrVk by remember {
         mutableStateOf(
-            if (!File("qr_vk.png").exists() || vkGroupChange)
-                generateAndSaveQr(idPhoto, Social.VK, settings.vkGroupId.toString())
-            else
-                loadImageBitmap(File("qr_vk.png"))
+            if (Settings.botNeed.value) {
+                if (!File("qr_vk.png").exists() || Settings.vkGroupChange)
+                    generateAndSaveQr(idPhoto, Social.VK, Settings.vkGroupId.toString())
+                else
+                    loadImageBitmap(File("qr_vk.png"))
+            } else
+                null
         )
     }
 
-    var qr by remember { mutableStateOf<ImageBitmap?>(qrVk) }
+    var qr by remember { mutableStateOf(qrVk) }
+    var emailSelect by remember { mutableStateOf(Settings.emailNeed.value && !Settings.botNeed.value) }
+    var emailToAddr by remember { mutableStateOf("") }
+    var emailToAddrError by remember { mutableStateOf(false) }
+    var sendMailButtonText by remember { mutableStateOf("Отправить") }
+    val coroutineScope = rememberCoroutineScope()
 
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(
@@ -107,126 +123,199 @@ fun ResultFragment(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(10.dp, 0.dp).fillMaxWidth().wrapContentHeight()
                 ) {
-                    Text(
-                        text = "Id вашей фотографии:",
-                        textAlign = TextAlign.Start,
-                        fontSize = 40.sp,
-                        modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
-                    )
-
-                    Text(
-                        text = idPhoto,
-                        textAlign = TextAlign.Center,
-                        fontSize = 70.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
-                    )
-
-                    Text(
-                        text = "Получить в социальных сетях:",
-                        textAlign = TextAlign.Start,
-                        fontSize = 40.sp,
-                        modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
-                    )
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
-                        val icons = mapOf(
-                            useResource("icon/logo_vk.png") { loadImageBitmap(it) } to Social.VK,
-                            useResource("icon/logo_telegram.png") { loadImageBitmap(it) } to Social.TELEGRAM,
-                            useResource("icon/logo_email.png") { loadImageBitmap(it) } to Social.EMAIL,
+                    if (Settings.botNeed.value) {
+                        Text(
+                            text = "Id вашей фотографии:",
+                            textAlign = TextAlign.Start,
+                            fontSize = 40.sp,
+                            modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
                         )
 
-                        icons.forEach { (icon, social) ->
+                        Text(
+                            text = idPhoto,
+                            textAlign = TextAlign.Center,
+                            fontSize = 70.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
+                        )
+                    }
+
+                    if (Settings.botNeed.value || Settings.emailNeed.value)
+                        Text(
+                            text = if (Settings.botNeed.value) "Получить в социальных сетях:" else "Получить по почте",
+                            textAlign = TextAlign.Start,
+                            fontSize = 40.sp,
+                            modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
+                        )
+
+                    if (Settings.botNeed.value) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
+                            val icons = mapOf(
+                                useResource("icon/logo_vk.png") { loadImageBitmap(it) } to Social.VK,
+                                useResource("icon/logo_telegram.png") { loadImageBitmap(it) } to Social.TELEGRAM,
+                                useResource("icon/logo_email.png") { loadImageBitmap(it) } to Social.EMAIL,
+                            )
+
+                            icons.forEach { (icon, social) ->
+                                if (social == Social.EMAIL && !Settings.emailNeed.value) {
+                                    // пусто, чтобы не показывать иконку Email
+                                } else
+                                    Image(
+                                        painter = BitmapPainter(icon),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Inside,
+                                        modifier = Modifier
+                                            .padding(7.dp)
+                                            .width(80.dp)
+                                            .aspectRatio(1f)
+                                            .clickable {
+                                                qr = when (social) {
+                                                    Social.VK -> qrVk
+                                                    Social.TELEGRAM -> qrTgm
+                                                    Social.EMAIL -> null
+                                                }
+
+                                                emailSelect = social == Social.EMAIL
+                                            }
+                                    )
+                            }
+                        }
+
+                        Text(
+                            text = "Вы можете получить фото в течение ${Settings.photoLifeTime.value} суток",
+                            textAlign = TextAlign.Start,
+                            fontSize = 20.sp,
+                            modifier = Modifier
+                                .padding(0.dp, 5.dp)
+                                .fillMaxWidth()
+                        )
+
+                        if (qr != null)
                             Image(
-                                painter = BitmapPainter(icon),
+                                bitmap = qr!!,
                                 contentDescription = null,
                                 contentScale = ContentScale.Inside,
                                 modifier = Modifier
-                                    .padding(7.dp)
-                                    .width(80.dp)
+                                    .fillMaxWidth(0.6f)
                                     .aspectRatio(1f)
-                                    .clickable {
-                                        qr = when (social) {
-                                            Social.VK -> qrVk
-                                            Social.TELEGRAM -> qrTgm
-                                            Social.EMAIL -> null
-                                        }
-                                    }
                             )
-                        }
                     }
 
-                    Text(
-                        text = "Вы можете получить фото в течение ${settings.photoLifeTime} суток",
-                        textAlign = TextAlign.Start,
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .padding(0.dp, 5.dp)
-                            .fillMaxWidth()
-                    )
 
-                    if (qr != null)
-                        Image(
-                            bitmap = qr!!,
-                            contentDescription = null,
-                            contentScale = ContentScale.Inside,
-                            modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .aspectRatio(1f)
-                        )
+                    if (emailSelect) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            var emailSuccess by remember { mutableStateOf<Boolean?>(null) }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = emailToAddr,
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 18.sp),
+                                    onValueChange = {
+                                        emailToAddr = it
+                                        emailToAddrError = !emailToAddr.matches(Regex("""(\w|\d)+@\w+\.\w+"""))
+                                        emailSuccess = null
+                                    },
+                                    modifier = Modifier.fillMaxWidth(0.7f)
+                                )
+
+                                Button(
+                                    enabled = !emailToAddrError && sendMailButtonText == "Отправить",
+                                    onClick = {
+//                                        rememberCoroutineScope().launch {
+                                        coroutineScope.launch {
+                                            withContext(Dispatchers.IO){
+                                                Email.sendEmail(
+                                                    to = emailToAddr,
+                                                    photo = photo,
+                                                    onSuccess = { emailSuccess = true },
+                                                    onFail = { emailSuccess = false }
+                                                )
+                                            }
+                                        }
+
+                                        coroutineScope.launch {
+                                            sendMailButtonText = "Подождите"
+                                            for (i in 5 downTo 1)
+                                                delay(1000)
+
+                                            sendMailButtonText = "Отправить"
+                                        }
+                                    }
+                                ) {
+                                    Text(sendMailButtonText)
+                                }
+                            }
+
+                            if (emailSuccess != null)
+                                Text(
+                                    text = if (emailSuccess!!)
+                                        "Фото успешно отправлено на указанную почту"
+                                    else
+                                        "К сожалению, не удалось отправить фото на указанную почту",
+                                    fontSize = 20.sp,
+                                )
+                        }
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    var copiesMax by remember { mutableStateOf(settings.photoCopiesNum!!) }
-                    val copiesSelect = remember { mutableStateOf(1) }
-                    println("copiesMax = $copiesMax")
+                    if (Settings.printNeed.value) {
 
-                    Text(
-                        text = "Вы также можете распечатать фото",
-                        fontSize = 20.sp,
-                    )
+                        var copiesMax by remember { mutableStateOf(Settings.photoCopiesNum.value) }
+                        val copiesSelect = remember { mutableStateOf(1) }
+                        println("copiesMax = $copiesMax")
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (copiesMax > 1) Arrangement.SpaceAround else Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp)
-                    ) {
+                        Text(
+                            text = "Вы можете распечатать фото",
+                            fontSize = 20.sp,
+                        )
 
-                        if (copiesMax > 1) {
-                            Text(
-                                text = "Количество копий:",
-                                fontSize = 30.sp
-                            )
-
-                            NumberPicker(
-                                state = copiesSelect,
-                                range = 1..copiesMax,
-                                timeFormat = false,
-                                animationHeight = 40.dp,
-                                width = 40.dp,
-                                onStateChanged = { copiesSelect.value = it },
-                                textStyle = LocalTextStyle.current.copy(fontSize = 30.sp)
-                            )
-                        }
-
-                        Button(
-                            enabled = copiesMax > 0,
-                            onClick = {
-                                printPhoto(
-                                    loadImageBitmap(photo).toAwtImage(),
-                                    printService,
-                                    paperSize,
-                                    copiesSelect.value
-                                )
-                                copiesMax -= copiesSelect.value
-                                copiesSelect.value = 1
-
-                            }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = if (copiesMax > 1) Arrangement.SpaceAround else Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp)
                         ) {
-                            Text(
-                                text = "Печать",
-                                fontSize = 30.sp
-                            )
+
+                            if (copiesMax > 1) {
+                                Text(
+                                    text = "Количество копий:",
+                                    fontSize = 30.sp
+                                )
+
+                                NumberPicker(
+                                    state = copiesSelect,
+                                    range = 1..copiesMax,
+                                    timeFormat = false,
+                                    animationHeight = 40.dp,
+                                    width = 40.dp,
+                                    onStateChanged = { copiesSelect.value = it },
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 30.sp)
+                                )
+                            }
+
+                            Button(
+                                enabled = copiesMax > 0,
+                                onClick = {
+                                    printPhoto(
+                                        loadImageBitmap(photo).toAwtImage(),
+                                        copiesSelect.value
+                                    )
+                                    copiesMax -= copiesSelect.value
+                                    copiesSelect.value = 1
+                                }
+                            ) {
+                                Text(
+                                    text = "Печать",
+                                    fontSize = 30.sp
+                                )
+                            }
                         }
                     }
 
@@ -278,8 +367,11 @@ fun generateQR(photoId: String, social: Social, socialName: String): ImageBitmap
     return MatrixToImageWriter.toBufferedImage(matrix).toComposeImageBitmap()
 }
 
-fun printPhoto(image: BufferedImage, printService: PrintService, paperSize: MediaSizeName, copiesNum: Int) {
-    val job = printService.createPrintJob()
+fun printPhoto(image: BufferedImage, copiesNum: Int) {
+    if (Settings.printer == null || Settings.paper == null)
+        return
+
+    val job = Settings.printer!!.createPrintJob()
 
     val printAttributes = HashPrintRequestAttributeSet().apply {
         if (image.width >= image.height)
@@ -287,10 +379,10 @@ fun printPhoto(image: BufferedImage, printService: PrintService, paperSize: Medi
         else
             add(OrientationRequested.PORTRAIT)
 
-        val mediaSize = MediaSize.getMediaSizeForName(paperSize)
+        val mediaSize = MediaSize.getMediaSizeForName(Settings.paper)
         val size = mediaSize.getSize(MediaSize.MM)
 
-        add(paperSize)
+        add(Settings.paper)
         add(MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.MM))
         add(Copies(copiesNum))
     }

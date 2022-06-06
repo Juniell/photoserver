@@ -1,3 +1,6 @@
+package fragments.welcome
+
+import Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -15,7 +18,7 @@ import androidx.compose.ui.unit.sp
 //        "Вы сможете получить своё фото в VK или Telegram."
 
 @Composable
-fun WelcomeFragment(textWelcome: String, onButtonClick: () -> Unit) {
+fun WelcomeFragment(onButtonClick: () -> Unit) {
     MaterialTheme {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -24,7 +27,7 @@ fun WelcomeFragment(textWelcome: String, onButtonClick: () -> Unit) {
         ) {
 
             Text(
-                text = textWelcome,
+                text = Settings.textWelcome.value,
                 fontSize = 60.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(1200.dp)

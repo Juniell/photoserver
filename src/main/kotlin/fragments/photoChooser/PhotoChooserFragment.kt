@@ -1,8 +1,6 @@
 package fragments.photoChooser
 
-import InfoSettings
-import components.Spinnable
-import components.Spinner
+import Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -21,6 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import components.LazyGrid
+import components.Spinnable
+import components.Spinner
 import components.TimeRangePicker
 import io.kamel.core.config.KamelConfig
 import io.kamel.core.config.takeFrom
@@ -46,21 +46,22 @@ const val DIR_MINIS = "minis"
 @ExperimentalSplitPaneApi
 @Composable
 fun PhotoChooserFragment(
-    settings: InfoSettings,
     onBackButtonClick: () -> Unit,
-    onNextButtonClick: (photo: File) -> Unit
+    onNextButtonClick: () -> Unit
 ) {
     val kamelConfig = KamelConfig {
         takeFrom(KamelConfig.Default)
         imageBitmapCacheSize = 1000
     }
 
-    val path = settings.dirInput!!
+    val path = Settings.dirInput.value
     val pathMinis = path + File.separator + DIR_MINIS
+
     File(pathMinis).apply {
         if (!exists())
             mkdir()
     }
+
     val files = (File(path).listFiles()?.toList() ?: listOf())
         .filter { it.isFile && it.name.split(".").last() == "jpg" }
     var filteredFiles by remember { mutableStateOf(files.sortedBy { it.lastModified() }.reversed()) }
@@ -132,6 +133,7 @@ fun PhotoChooserFragment(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Spinner(
+                                label = { Text("Фильтрация")},
                                 data = Filters.values().toList(),
                                 value = selectedFilter,
                                 onSelected = { selectedElement: Spinnable ->
@@ -204,7 +206,10 @@ fun PhotoChooserFragment(
                                 Text("Назад", fontSize = 30.sp, modifier = Modifier.padding(2.dp))
                             }
 
-                            Button(onClick = { onNextButtonClick(photoPreview) }) {
+                            Button(onClick = {
+                                Settings.selectedPhoto = photoPreview
+                                onNextButtonClick(/*photoPreview*/)
+                            }) {
                                 Text("Далее", fontSize = 30.sp, modifier = Modifier.padding(2.dp))
                             }
                         }

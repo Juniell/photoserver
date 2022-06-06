@@ -27,6 +27,7 @@ dependencies {
     implementation("com.google.zxing:javase:3.5.0")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("javax.mail:mail:1.4.7")
     // бд
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("ch.qos.logback:logback-classic:1.2.11")

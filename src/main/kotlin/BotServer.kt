@@ -25,8 +25,6 @@ object BotServer {
 
     private var sendUnsentPhotos = false
     private var unsentPhotos = listOf<File>()
-    private val phrase = "photo"    //todo: задавать в настройках
-
 
     fun initApi(serverUrl: String): BotService {
         this.serverUrl = serverUrl
@@ -174,18 +172,14 @@ interface BotService {
     ): Call<ResponseBody>
 
     @POST("check")
-    fun checkConnect(
-        @Query("phrase") phrase: String
-    ): Call<ResponseBody>
+    fun checkConnect(): Call<ResponseBody>
 
     @GET("settings")
-    fun getSettings(
-        @Query("phrase") phrase: String
-    ): Call<BotSettings>
+    fun getSettings(): Call<BotSettings>
 }
 
 data class BotSettings(
-    val vkId: Int,          // id группы в вк
+    val vkId: Int,          // id группы вк
     val tgmId: String,      // id чата телеграмма
     val photoLife: Int      // время хранения фотографий (дни)
 )

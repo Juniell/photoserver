@@ -25,6 +25,7 @@ fun Spinner(
     padding: PaddingValues,
     textFontSize: TextUnit,
     width: Dp? = null,
+    label:  @Composable () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -34,6 +35,7 @@ fun Spinner(
             .padding(padding)
     ) {
         OutlinedTextField(
+            label = label,
             value = value?.toString() ?: "",
             textStyle = LocalTextStyle.current.copy(fontSize = textFontSize),
             onValueChange = { },

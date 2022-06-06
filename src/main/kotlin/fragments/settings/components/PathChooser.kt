@@ -15,7 +15,7 @@ import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
-//todo: подумать над отображением длинных путей
+//todo: подумать над отображением путей для DIR
 @Composable
 fun PathChooser(
     modifier: Modifier = Modifier,
@@ -29,65 +29,66 @@ fun PathChooser(
 ) {
     var savedPath by remember { mutableStateOf(file?.path) }
 
-    Column(
-        modifier = modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
             .fillMaxWidth()
+            .then(modifier)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 7.dp)
-        ) {
-            Text(
-                text = title,
-                fontSize = 20.sp,
-                modifier = Modifier
-                    .padding(start = 5.dp)
-            )
-
-            Button(
-                modifier = Modifier
-                    .padding(end = 5.dp),
-                onClick = {
-                    val chooser = JFileChooser()
-                    chooser.dialogTitle = dialogTitle
-                    chooser.fileSelectionMode = mode.modeInt
-
-                    if (mode == PathChooserMode.IMAGE) {
-                        chooser.currentDirectory = file?.parentFile ?: File(".")
-                        chooser.fileFilter = FileNameExtensionFilter(
-                            "Image files",
-//                        *ImageIO.getReaderFileSuffixes()
-                            "png"
-                        )
-                    } else {
-                        chooser.currentDirectory = File(savedPath ?: ".")
-                    }
-
-                    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                        val newPath = chooser.selectedFile.path
-                        savedPath = newPath // отлавливаем путь
-                        onDirChoose(newPath)
-                    }
-                }
-            ) {
-                Text("Выбрать")
-            }
-        }
-
         OutlinedTextField(
-            value = savedPath ?: "",
+            label = {
+                Text(
+                    text = title,
+                    fontSize = 15.sp
+                )
+            },
+            value =
+            if (mode == PathChooserMode.IMAGE) {
+                if (savedPath != null)
+                    File(savedPath!!).name
+                else
+                    ""
+            } else
+                savedPath ?: "",
             onValueChange = { },
             readOnly = true,
             singleLine = true,
             textStyle = textStyle,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.8f)
                 .focusProperties { this.canFocus = false },
             isError = isError
         )
+
+        Button(
+//            modifier = Modifier
+//                .padding(end = 5.dp),
+            onClick = {
+                val chooser = JFileChooser()
+                chooser.dialogTitle = dialogTitle
+                chooser.fileSelectionMode = mode.modeInt
+
+                if (mode == PathChooserMode.IMAGE) {
+                    chooser.currentDirectory = file?.parentFile ?: File(".")
+                    chooser.fileFilter = FileNameExtensionFilter(
+                        "Image files",
+//                        *ImageIO.getReaderFileSuffixes()
+                        "png"
+                    )
+                } else {
+                    chooser.currentDirectory = File(if (savedPath.isNullOrEmpty()) "." else savedPath!!)
+                }
+
+                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    val newPath = chooser.selectedFile.path
+                    savedPath = newPath // отлавливаем путь
+                    onDirChoose(newPath)
+                }
+            }
+        ) {
+            Text("Выбрать")
+        }
     }
 }
 
