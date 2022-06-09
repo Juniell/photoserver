@@ -4,10 +4,7 @@ import Settings
 import Settings.readDatabase
 import Settings.writeDatabase
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,13 +20,10 @@ import javax.print.attribute.standard.Media
 import javax.print.attribute.standard.MediaSizeName
 
 private val settingsExists = readDatabase()
-private val oldVkGroupId = Settings.vkGroupId
 
 val elHeight = 55.dp
-val elWidth = 580.dp
+val elWidth = 550.dp
 val textStyle = TextStyle(fontSize = 18.sp)
-
-//todo: Показывать свободное место на диске
 
 @ExperimentalMaterialApi
 @ExperimentalFoundationApi
@@ -41,8 +35,8 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
 
     var printer by remember {
         mutableStateOf(
-            if (Settings.printerName.value.isNotEmpty() && printerList.contains(Settings.printerName.value))
-                Printer(printServices[printerList.indexOf(Settings.printerName.value)])
+            if (Settings.printerName.isNotEmpty() && printerList.contains(Settings.printerName))
+                Printer(printServices[printerList.indexOf(Settings.printerName)])
             else null
         )
     }
@@ -51,7 +45,7 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
         null,
         null
     ) as Array<*>?)?.filterIsInstance<MediaSizeName>()
-    var paperSize by remember { mutableStateOf(sizeList?.find { it.toString() == Settings.paperSize.value }) }
+    var paperSize by remember { mutableStateOf(sizeList?.find { it.toString() == Settings.paperSize }) }
 
     var currSettingTab by remember { mutableStateOf(SettingTabs.values().first()) }
     val scaffoldState = rememberScaffoldState()
@@ -101,36 +95,44 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
                             },
                         )
 
-                    else -> {}
+                    SettingTabs.MIRROR_CAMERA ->
+                        SettingsMirrorCamera()
                 }
 
                 if (currSettingTab == SettingTabs.GENERAL)
                     Button(
                         onClick = {
                             val msg = when {
-                                Settings.dirInput.value.isEmpty() || Settings.dirOutput.value.isEmpty() ||
-                                        Settings.dirStickers.value.isEmpty()
+                                Settings.dirInput.isEmpty() || Settings.dirOutput.isEmpty() ||
+                                        Settings.dirStickers.isEmpty() || Settings.dirSmileys.isEmpty()
                                 -> "Необходимо указать все настройки в разделе \"Основные\""
 
-                                Settings.botNeed.value && (Settings.botServerAddress.value.isEmpty() ||
-                                        botServerState == ConnectionState.UNKNOWN || Settings.telegramBotName.value.isEmpty() ||
-                                        Settings.vkGroupId.value < 0 || Settings.photoLifeTime.value < 0)
-                                -> "При режиме работы с ботами необходимо указать сервер, проверить соединение с ним " +
+                                Settings.botNeed && (Settings.botServerAddress.isEmpty() || Settings.botServerPhrase.isEmpty() ||
+                                        botServerState == ConnectionState.UNKNOWN || Settings.telegramBotName.isEmpty() ||
+                                        Settings.vkGroupId < 0 || Settings.photoLifeTime < 0)
+                                -> "Для работы с ботами необходимо указать сервер, пароль, проверить соединение с ним " +
                                         "и проверить все настройки в его разделе"
 
-                                Settings.emailNeed.value &&
-                                        (Settings.emailAddress.value.isEmpty() || Settings.emailPassword.value.isEmpty())
+                                Settings.emailNeed &&
+                                        (emailAddressIsError() || Settings.emailPassword.isEmpty())
                                 -> "Для отправки фото по почте необходимо указать почту и пароль"
 
-                                Settings.printNeed.value &&
-                                        (Settings.printerName.value.isEmpty() || Settings.paperSize.value.isEmpty())
+                                Settings.printNeed &&
+                                        (Settings.printerName.isEmpty() || Settings.paperSize.isEmpty())
                                 -> "Для печати необходимо указать принтер и бумагу"
 
-                                Settings.frameNeed.value && Settings.photoFramePath.value.isEmpty()
+                                Settings.frameNeed && Settings.photoFramePath.isEmpty()
                                 -> "Вы выбрали режим с наложением рамки, но не выбрали рамку"
 
-                                !Settings.printNeed.value && !Settings.botNeed.value && !Settings.emailNeed.value
+                                !Settings.printNeed && !Settings.botNeed && !Settings.emailNeed
                                 -> "Вы не выбрали ни одного режима работы (печать, отправка на почту или работа с ботами)"
+
+                                Settings.camerasNeed && (Settings.ftpUserLogin.isEmpty() ||
+                                        Settings.ftpUserPassword.isEmpty() || Settings.ftpUserPassword.length < 6)
+                                -> "Введены некорректные имя пользователя и/или пароль пользователя для работы с фотоаппаратами"
+
+                                !Settings.camerasNeed && !Settings.mirrorNeed
+                                -> "Вы не выбрали ни одного способа получения фотографий (фотозеркало или фотокамера)"
 
                                 else -> ""
                             }
@@ -145,16 +147,14 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
                                 return@Button
                             }
 
-                            val vkGroupChange = Settings.vkGroupId != oldVkGroupId
-
                             writeDatabase(!settingsExists)
                             // Необходимо, потому что могут не вызываться методы, в которых присваиваются эти значения
                             Settings.printer = printer?.printService
                             Settings.paper = paperSize
-                            Settings.vkGroupChange = vkGroupChange
 
                             onNextButtonClick()
-                        }
+                        },
+                        modifier = Modifier.padding(10.dp)
                     ) {
                         Text(
                             text = "Запуск",
@@ -177,9 +177,6 @@ fun Tabs(
     TabRow(
         selectedTabIndex = selectedTabId,
         modifier = Modifier.fillMaxWidth(),
-//        indicator = { tabPositions: List<TabPosition> ->
-//        },
-//        divider = {},
         tabs = {
             tabs.forEachIndexed { index, tab ->
                 Tab(
@@ -205,6 +202,5 @@ enum class SettingTabs(val nameRus: String) {
     GENERAL("Общие"),
     BOTS("Социальные сети"),
     PRINT("Печать и рамка"),
-    MIRROR("Фотозеркало"),
-    CAMERA("Фотоаппарат"),
+    MIRROR_CAMERA("Фотозеркало и фотоаппарат"),
 }

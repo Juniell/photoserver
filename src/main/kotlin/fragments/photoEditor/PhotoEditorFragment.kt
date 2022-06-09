@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
-import fragments.photoChooser.DIR_MINIS
 import fragments.photoEditor.components.EditorToolbar
 import fragments.photoEditor.components.SlidersSizeAngle
 import fragments.photoEditor.components.TEXT_FONT_SIZE
@@ -99,29 +98,36 @@ fun PhotoEditorFragment(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        EditorToolbar(PaddingValues(10.dp), selectedTools) { newTools ->
-                            selectedTools = newTools
-                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            EditorToolbar(PaddingValues(10.dp), selectedTools) { newTools ->
+                                selectedTools = newTools
+                            }
 
-                        Row {
+                            Spacer(modifier = Modifier.width(10.dp))
+
                             Icon(
                                 imageVector = Icons.Filled.Undo,
                                 contentDescription = null,
                                 tint = if (backStack.undoEnabled) Color.Black else Color.Gray,
-                                modifier = Modifier.clickable(enabled = backStack.undoEnabled) {
-                                    backStack.undo()
-                                }
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable(enabled = backStack.undoEnabled) {
+                                        backStack.undo()
+                                    }
                             )
-
-                            Spacer(modifier = Modifier.width(10.dp))
 
                             Icon(
                                 imageVector = Icons.Filled.Redo,
                                 contentDescription = null,
                                 tint = if (backStack.redoEnabled) Color.Black else Color.Gray,
-                                modifier = Modifier.clickable(enabled = backStack.redoEnabled) {
-                                    backStack.redo()
-                                }
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable(enabled = backStack.redoEnabled) {
+                                        backStack.redo()
+                                    }
                             )
                         }
 
@@ -131,7 +137,10 @@ fun PhotoEditorFragment(
                                     onBackButtonClick()
                                 }
                             ) {
-                                Text("Назад")
+                                Text(
+                                    text = "Назад",
+                                    fontSize = 25.sp
+                                )
                             }
 
                             Button(
@@ -147,7 +156,10 @@ fun PhotoEditorFragment(
                                     onNextButtonClick(resPhotoPath)
                                 }
                             ) {
-                                Text("Готово")
+                                Text(
+                                    text = "Готово",
+                                    fontSize = 25.sp
+                                )
                             }
                         }
                     }
@@ -185,18 +197,30 @@ fun PhotoEditorFragment(
                         modifier = Modifier.padding(5.dp, 0.dp),
                         selectedTools = selectedTools,
                         selectedColor = selectedColor,
-                        photoMini = File(Settings.selectedPhoto.parent + File.separator + DIR_MINIS + File.separator + Settings.selectedPhoto.name),
-                        stickerPath = Settings.dirStickers.value,
+                        photoMini = Settings.selectedPhotoMini,
+                        stickerPath = Settings.dirStickers,
+                        smileysPath = Settings.dirSmileys,
                         onColorChange = { newColor: Color -> selectedColor = newColor },
                         onChooseFilter = { selectedFilter: ColorFilter? -> filter = selectedFilter },
                         onBrushSizeChange = { newSize: Float -> brushSize = newSize },
                         onStickerClick = { sticker: File ->
                             backStack.addToLayerList(
                                 ImageLayer(
-                                    sticker,
+                                    sticker, mutableStateOf(1f),
+                                    mutableStateOf(0f),
+                                    mutableStateOf(Offset.Zero),
+                                    "Стикер"
+                                )
+                            )
+                        },
+                        onSmileClick = { smile: File ->
+                            backStack.addToLayerList(
+                                ImageLayer(
+                                    smile,
                                     mutableStateOf(1f),
                                     mutableStateOf(0f),
-                                    mutableStateOf(Offset.Zero)
+                                    mutableStateOf(Offset.Zero),
+                                    "Смайл"
                                 )
                             )
                         },
@@ -263,38 +287,6 @@ private fun Editor(
         brush(Modifier.matchParentSize())
     }
 }
-
-//@ExperimentalFoundationApi
-//@Composable
-//fun EditorCheck(
-//    stack: List<Layer>,
-//    image: ImageBitmap,
-//    paperSize: MediaSizeName,
-//    colorFilter: ColorFilter?,
-//    onSizeChange: (newSize: IntSize) -> Unit,
-//    brush: @Composable (modifier: Modifier) -> Unit = { }
-//) {
-//    val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
-//
-//    Box(
-//        contentAlignment = Alignment.Center,
-//        modifier = Modifier
-//            .aspectRatio(if (image.height > image.width) size[0] / size[1] else size[1] / size[0])
-//            .paint(BitmapPainter(image), colorFilter = colorFilter, contentScale = ContentScale.Crop)
-//            .onSizeChanged {
-//                onSizeChange(it)
-//            }
-//            .clipToBounds()
-//    ) {
-//
-//        Layers(
-//            modifierBrush = Modifier.matchParentSize(),
-//            layers = stack
-//        )
-//
-//        brush(Modifier.matchParentSize())
-//    }
-//}
 
 @ExperimentalFoundationApi
 @Composable
@@ -387,8 +379,8 @@ fun Layers(modifierBrush: Modifier = Modifier, layers: List<Layer>, editingEnabl
 
                 if (layer is ImageLayer) {
                     Image(
-                        painter = BitmapPainter(loadImageBitmap(layer.image)),
-                        contentDescription = "Sticker",
+                        bitmap = loadImageBitmap(layer.image),
+                        contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .then(modifier),
@@ -474,7 +466,8 @@ fun LayersList(
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row {
                         if (item is BrushLayer || item is TextLayer) {
                             val color = when (item) {
@@ -504,7 +497,7 @@ fun LayersList(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
-                    Row (horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(15.dp)) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             tint = Color.DarkGray,
@@ -512,8 +505,8 @@ fun LayersList(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clickable {
-                                onDeleteLayer(idx)
-                            }
+                                    onDeleteLayer(idx)
+                                }
                         )
 
                         Icon(
@@ -653,9 +646,9 @@ private fun savePhoto(
                 colorFilter = filter,
                 onSizeChange = {}
             ) {
-                if (Settings.frameNeed.value)
+                if (Settings.frameNeed)
                     Image(
-                        bitmap = loadImageBitmap(File(Settings.photoFramePath.value)),
+                        bitmap = loadImageBitmap(File(Settings.photoFramePath)),
                         contentDescription = null,
                         contentScale = ContentScale.FillBounds,
                         modifier = Modifier.matchParentSize().zIndex((BACKSTACK_MAX_INDEX + 1).toFloat())
@@ -664,73 +657,11 @@ private fun savePhoto(
         }
     }
 
-//    val newStack = resizeLayers(imageBitmap.width, imageBitmap.height, width, height)
-
-//    val image = renderComposeScene(width, height) {
-//        Editor(
-//            image = imageBitmap,
-//            filter,
-//            onSizeChange = {}
-//        )
-//    }
-
-    val path = Settings.dirOutput.value + File.separator + generateId() + ".jpg"
+    val path = Settings.dirOutput + File.separator + generateId() + ".jpg"
     val outputFile = File(path)
 
     outputFile.writeBytes(image.encodeToData()!!.bytes)
     return outputFile
 }
 
-//fun resizeLayers(widthOrigPhoto: Int, heightOrigPhoto: Int, widthNew: Int, heightNew: Int): List<Layer> {
-//    println("widthOrigPhoto = $widthOrigPhoto, heightOrigPhoto = $heightOrigPhoto")
-//    println("widthNew = $widthNew, heightNew = $heightNew")
-//    val scale = widthOrigPhoto / widthNew
-//
-//    val resultLayers = mutableListOf<Layer>()
-//
-//    for (layer in backStack.currLayers()) {
-//        resultLayers.add(
-//            when (layer) {
-//                // todo: вопрос с path
-//                is BrushLayer -> BrushLayer(
-//                    layer.path,
-//                    layer.color,
-//                    layer.brushSize * scale,
-//                    layer.name
-//                )
-//
-//                is ImageLayer -> ImageLayer(
-//                    image = layer.image,
-//                    scale = mutableStateOf(layer.scale.value * scale * scale),
-//                    angle = layer.angle,
-//                    offset = mutableStateOf(
-//                        Offset(
-//                            (layer.offset.value.x / widthNew) * widthOrigPhoto,
-//                            (layer.offset.value.y / heightNew) * heightOrigPhoto
-//                        )
-//                    ),
-//                    name = layer.name
-//                )
-//
-//                is TextLayer -> TextLayer(
-//                    text = layer.text,
-//                    color = layer.color,
-//                    fontFamily = layer.fontFamily,
-//                    scale = mutableStateOf(layer.scale.value * scale * scale),
-//                    angle = layer.angle,
-//                    offset = mutableStateOf(
-//                        Offset(
-//                            (layer.offset.value.x / widthNew) * widthOrigPhoto,
-//                            (layer.offset.value.y / heightNew) * heightOrigPhoto
-//                        )
-//                    ),
-//                    name = layer.name
-//                )
-//
-//                else -> throw IllegalArgumentException("WHAAAT")
-//            }
-//        )
-//    }
-//    return resultLayers
-//}
 

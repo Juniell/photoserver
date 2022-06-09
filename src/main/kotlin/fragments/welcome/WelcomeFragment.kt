@@ -12,11 +12,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-//private const val startText = "Не хотите ждать, пока фотограф выложит обработанные фото?" +
-//        "Вы можете получить их прямо сейчас! " +
-//        "Просто нажмите на кнопку \"Начать\", выберете фото и отредактируйте." +
-//        "Вы сможете получить своё фото в VK или Telegram."
-
 @Composable
 fun WelcomeFragment(onButtonClick: () -> Unit) {
     MaterialTheme {
@@ -27,7 +22,7 @@ fun WelcomeFragment(onButtonClick: () -> Unit) {
         ) {
 
             Text(
-                text = Settings.textWelcome.value,
+                text = Settings.textWelcome,
                 fontSize = 60.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(1200.dp)

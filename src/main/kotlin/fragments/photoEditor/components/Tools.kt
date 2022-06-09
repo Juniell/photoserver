@@ -38,10 +38,9 @@ import androidx.compose.ui.unit.sp
 import com.godaddy.android.colorpicker.harmony.ColorHarmonyMode
 import com.godaddy.android.colorpicker.harmony.HarmonyColorPicker
 import components.LazyGrid
-import io.kamel.core.config.KamelConfig
-import io.kamel.core.config.takeFrom
+import fragments.photoChooser.kamelConfig
+import imageFilter
 import io.kamel.image.KamelImage
-import io.kamel.image.config.Default
 import io.kamel.image.config.LocalKamelConfig
 import io.kamel.image.lazyPainterResource
 import kotlinx.coroutines.launch
@@ -50,11 +49,6 @@ import java.io.File
 
 const val TEXT_FONT_SIZE = 70f
 const val SYMBOLS_LIMIT = 20
-
-private val kamelConfig = KamelConfig {
-    takeFrom(KamelConfig.Default)
-    imageBitmapCacheSize = 1000
-}
 
 private val filters = listOf(
     null,                                                                                                  // 0
@@ -104,13 +98,16 @@ fun Tools(
     selectedColor: Color,
     photoMini: File,
     stickerPath: String,
+    smileysPath: String,
     onColorChange: (newColor: Color) -> Unit,
     onChooseFilter: (selectedFilter: ColorFilter?) -> Unit,
     onBrushSizeChange: (newSize: Float) -> Unit,
-    onStickerClick: (sticker: File) -> Unit,
+    onStickerClick: (image: File) -> Unit,
+    onSmileClick: (image: File) -> Unit,
     onCreatingTextComplete: (text: String, color: Color, font: FontFamily, scale: Float, angle: Float) -> Unit
 ) {
-    val stickers = File(stickerPath).listFiles()?.filter { it.isFile } ?: listOf()
+    val stickers = File(stickerPath).listFiles(imageFilter)?.toList() ?: listOf()
+    val smileys = File(smileysPath).listFiles(imageFilter)?.toList() ?: listOf()
     var color by remember { mutableStateOf(selectedColor) }
     var customColor by remember { mutableStateOf(Color.Magenta) }
 
@@ -133,10 +130,6 @@ fun Tools(
                 }
             }
 
-            Tools.STICKER -> StickerPicker(stickers, onStickerClick)
-
-            Tools.FIlTER -> FilterPicker(photoMini, onChooseFilter)
-
             Tools.TEXT -> TextCreating(
                 color = color,
                 colorCustom = customColor,
@@ -148,7 +141,11 @@ fun Tools(
                 onCustomColorChange = { customColor = it }
             )
 
-            else -> Text(text = "")
+            Tools.STICKER -> ImagePicker(stickers, onStickerClick)
+
+            Tools.SMILE -> ImagePicker(smileys, onSmileClick)
+
+            Tools.FIlTER -> FilterPicker(photoMini, onChooseFilter)
         }
     }
 }
@@ -167,17 +164,14 @@ private fun ColorPicker(
     val colors = listOf(Color.Black, Color.White, Color.Blue, Color.Green, Color.Yellow, Color.Red, customColor)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        LazyGrid(items = colors, rowSize = 7, modifier = Modifier./*width(310.dp).*/padding(10.dp)) {
+        LazyGrid(items = colors, rowSize = 7, modifier = Modifier.padding(10.dp)) {
             Box(modifier = Modifier
-//                .clip(CircleShape)
                 .aspectRatio(1f)
                 .padding(4.dp)
                 .border(
                     width = if (selectedColor == it) 3.dp else 1.dp,
                     color = Color.Black
                 )
-//                .border(width = 0.dp, shape = CircleShape, color = Color.Black)
-//                .background(it, shape = CircleShape)
                 .background(it)
                 .clickable {
                     selectedColor = Color(it.red, it.green, it.blue, alpha)
@@ -187,9 +181,8 @@ private fun ColorPicker(
         }
 
         HarmonyColorPicker(
-            modifier = Modifier.height(250.dp), //todo
+            modifier = Modifier.height(250.dp),
             harmonyMode = ColorHarmonyMode.NONE,
-            /*modifier = Modifier.fillMaxWidth(85/100f),*/
             color = customColor,
             onColorChanged = {
                 val newColor = it.toColor()
@@ -216,21 +209,18 @@ private fun ColorPicker(
 
 @Composable
 private fun BrushSizePicker(onSizeChange: (newSize: Float) -> Unit) {
-//    var size by remember { mutableStateOf(10f) }
-
     SliderWithName(
         name = "Размер кисти",
         value = 10f,
         valueRange = 3f..30f,
         onValueChange = {
-//            size = it
             onSizeChange(it)
         }
     )
 }
 
 @Composable
-private fun StickerPicker(stickers: List<File>, onStickerClick: (sticker: File) -> Unit) {
+private fun ImagePicker(stickers: List<File>, onStickerClick: (sticker: File) -> Unit) {
     if (stickers.isEmpty())
         Text("Стикеры не найдены.")
     else
@@ -240,7 +230,7 @@ private fun StickerPicker(stickers: List<File>, onStickerClick: (sticker: File) 
                 contentDescription = "Sticker",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .width(300.dp)                 //todo:  разобраться с размером по-другому (через fillMaxWidth(1/rowSize)??)
+                    .width(300.dp)
                     .aspectRatio(1f)
                     .align(Alignment.Center)
                     .padding(7.dp)
@@ -423,7 +413,6 @@ private fun TextFontPicker(onFontClick: (font: FontFamily) -> Unit) {
                 modifier = Modifier
                     .width(70.dp)
                     .aspectRatio(1f)
-//                    .padding(5.dp)
                     .clip(CircleShape)
                     .clickable {
                         selected = font
@@ -442,5 +431,4 @@ enum class Tools(val text: String, val imageVector: ImageVector) {
     STICKER("Стикеры", Icons.Outlined.InsertPhoto),
     SMILE("Смайлики", Icons.Outlined.SentimentSatisfiedAlt),
     FIlTER("Фильтры", Icons.Outlined.PhotoFilter)
-    //    ERASER("Ластик", ),
 }

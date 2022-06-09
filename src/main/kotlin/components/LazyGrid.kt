@@ -14,13 +14,13 @@ fun <T> LazyGrid(
     itemContent: @Composable BoxScope.(T) -> Unit
 ) {
     val rows = items.chunked(rowSize)
-    LazyColumn(modifier = modifier/*.padding(padding)*//*, contentPadding = innerPadding.*/) {
+    LazyColumn(modifier = modifier) {
         items(items = rows) { row ->
             Row(modifier = Modifier.fillParentMaxWidth()) {
                 for ((index, item) in row.withIndex()) {
                     Box(
                         Modifier
-                            .fillMaxWidth(1f / (rowSize - index /*+ 2*/))
+                            .fillMaxWidth(1f / (rowSize - index))
                             .aspectRatio(1f)
                     ) {
                         itemContent(item)

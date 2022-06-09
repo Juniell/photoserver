@@ -20,7 +20,7 @@ fun TimeRangePicker(
     animationHeight: Dp = 100.dp,
     textStyle: TextStyle
 ) {
-    val range = 0..24
+    val range = 0..23
     Row(
         modifier = Modifier.wrapContentSize(),
         verticalAlignment = Alignment.CenterVertically

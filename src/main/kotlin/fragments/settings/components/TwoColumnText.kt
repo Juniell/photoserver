@@ -34,7 +34,7 @@ fun TwoColumnText(
 
 
 @Composable
-private fun ColumnText(
+fun ColumnText(
     listText: List<String>,
     fontSize: TextUnit,
     bottomPaddingItem: Dp

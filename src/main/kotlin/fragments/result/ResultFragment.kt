@@ -1,5 +1,6 @@
 package fragments.result
 
+import Email
 import Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -12,11 +13,8 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.toAwtImage
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.res.useResource
@@ -51,12 +49,8 @@ import javax.print.DocFlavor
 import javax.print.PrintException
 import javax.print.SimpleDoc
 import javax.print.attribute.HashPrintRequestAttributeSet
-import javax.print.attribute.standard.Copies
-import javax.print.attribute.standard.MediaPrintableArea
-import javax.print.attribute.standard.MediaSize
-import javax.print.attribute.standard.OrientationRequested
+import javax.print.attribute.standard.*
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 
 @ExperimentalFoundationApi
@@ -69,15 +63,15 @@ fun ResultFragment(
 ) {
     val idPhoto = photo.nameWithoutExtension
 
-    val qrTgm = if (Settings.botNeed.value)
-        generateQR(idPhoto, Social.TELEGRAM, Settings.telegramBotName.value)
+    val qrTgm = if (Settings.botNeed)
+        generateQR(idPhoto, Social.TELEGRAM, Settings.telegramBotName)
     else
         null
 
     val qrVk by remember {
         mutableStateOf(
-            if (Settings.botNeed.value) {
-                if (!File("qr_vk.png").exists() || Settings.vkGroupChange)
+            if (Settings.botNeed) {
+                if (!File("qr_vk.png").exists() || Settings.vkGroupId != Settings.oldVkGroupId)
                     generateAndSaveQr(idPhoto, Social.VK, Settings.vkGroupId.toString())
                 else
                     loadImageBitmap(File("qr_vk.png"))
@@ -87,10 +81,12 @@ fun ResultFragment(
     }
 
     var qr by remember { mutableStateOf(qrVk) }
-    var emailSelect by remember { mutableStateOf(Settings.emailNeed.value && !Settings.botNeed.value) }
+    var selectedSocial by remember { mutableStateOf(if (Settings.emailNeed && !Settings.botNeed) Social.EMAIL else Social.VK) }
     var emailToAddr by remember { mutableStateOf("") }
     var emailToAddrError by remember { mutableStateOf(false) }
     var sendMailButtonText by remember { mutableStateOf("Отправить") }
+    var printButtonEnabled by remember { mutableStateOf(true) }
+    var copiesMax by remember { mutableStateOf(Settings.photoCopiesNum) }
     val coroutineScope = rememberCoroutineScope()
 
     HorizontalSplitPane(
@@ -123,7 +119,7 @@ fun ResultFragment(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(10.dp, 0.dp).fillMaxWidth().wrapContentHeight()
                 ) {
-                    if (Settings.botNeed.value) {
+                    if (Settings.botNeed) {
                         Text(
                             text = "Id вашей фотографии:",
                             textAlign = TextAlign.Start,
@@ -140,16 +136,19 @@ fun ResultFragment(
                         )
                     }
 
-                    if (Settings.botNeed.value || Settings.emailNeed.value)
+                    if (Settings.botNeed || Settings.emailNeed)
                         Text(
-                            text = if (Settings.botNeed.value) "Получить в социальных сетях:" else "Получить по почте",
+                            text = if (Settings.botNeed) "Получить в социальных сетях:" else "Получить по почте",
                             textAlign = TextAlign.Start,
                             fontSize = 40.sp,
                             modifier = Modifier.padding(0.dp, 5.dp).fillMaxWidth()
                         )
 
-                    if (Settings.botNeed.value) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally)) {
+                    if (Settings.botNeed) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             val icons = mapOf(
                                 useResource("icon/logo_vk.png") { loadImageBitmap(it) } to Social.VK,
                                 useResource("icon/logo_telegram.png") { loadImageBitmap(it) } to Social.TELEGRAM,
@@ -157,7 +156,7 @@ fun ResultFragment(
                             )
 
                             icons.forEach { (icon, social) ->
-                                if (social == Social.EMAIL && !Settings.emailNeed.value) {
+                                if (social == Social.EMAIL && !Settings.emailNeed) {
                                     // пусто, чтобы не показывать иконку Email
                                 } else
                                     Image(
@@ -166,23 +165,21 @@ fun ResultFragment(
                                         contentScale = ContentScale.Inside,
                                         modifier = Modifier
                                             .padding(7.dp)
-                                            .width(80.dp)
-                                            .aspectRatio(1f)
+                                            .size(if (selectedSocial == social) 120.dp else 80.dp)
                                             .clickable {
                                                 qr = when (social) {
                                                     Social.VK -> qrVk
                                                     Social.TELEGRAM -> qrTgm
                                                     Social.EMAIL -> null
                                                 }
-
-                                                emailSelect = social == Social.EMAIL
+                                                selectedSocial = social
                                             }
                                     )
                             }
                         }
 
                         Text(
-                            text = "Вы можете получить фото в течение ${Settings.photoLifeTime.value} суток",
+                            text = "Вы можете получить фото в течение ${Settings.photoLifeTime} суток",
                             textAlign = TextAlign.Start,
                             fontSize = 20.sp,
                             modifier = Modifier
@@ -202,7 +199,7 @@ fun ResultFragment(
                     }
 
 
-                    if (emailSelect) {
+                    if (selectedSocial == Social.EMAIL) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -228,9 +225,8 @@ fun ResultFragment(
                                 Button(
                                     enabled = !emailToAddrError && sendMailButtonText == "Отправить",
                                     onClick = {
-//                                        rememberCoroutineScope().launch {
                                         coroutineScope.launch {
-                                            withContext(Dispatchers.IO){
+                                            withContext(Dispatchers.IO) {
                                                 Email.sendEmail(
                                                     to = emailToAddr,
                                                     photo = photo,
@@ -265,16 +261,13 @@ fun ResultFragment(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (Settings.printNeed.value) {
-
-                        var copiesMax by remember { mutableStateOf(Settings.photoCopiesNum.value) }
+                Column {
+                    if (Settings.printNeed) {
                         val copiesSelect = remember { mutableStateOf(1) }
-                        println("copiesMax = $copiesMax")
 
                         Text(
-                            text = "Вы можете распечатать фото",
-                            fontSize = 20.sp,
+                            text = "Распечатать фото",
+                            fontSize = 40.sp,
                         )
 
                         Row(
@@ -286,7 +279,7 @@ fun ResultFragment(
                             if (copiesMax > 1) {
                                 Text(
                                     text = "Количество копий:",
-                                    fontSize = 30.sp
+                                    fontSize = 25.sp
                                 )
 
                                 NumberPicker(
@@ -296,24 +289,30 @@ fun ResultFragment(
                                     animationHeight = 40.dp,
                                     width = 40.dp,
                                     onStateChanged = { copiesSelect.value = it },
-                                    textStyle = LocalTextStyle.current.copy(fontSize = 30.sp)
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 25.sp)
                                 )
                             }
 
                             Button(
-                                enabled = copiesMax > 0,
+                                enabled = (copiesMax > 0) && printButtonEnabled,
                                 onClick = {
-                                    printPhoto(
-                                        loadImageBitmap(photo).toAwtImage(),
-                                        copiesSelect.value
-                                    )
-                                    copiesMax -= copiesSelect.value
-                                    copiesSelect.value = 1
-                                }
+                                    coroutineScope.launch {
+                                        printPhoto(loadImageBitmap(photo).toAwtImage(), copiesSelect.value)
+                                        copiesMax -= copiesSelect.value
+                                        copiesSelect.value = 1
+                                    }
+                                    coroutineScope.launch {
+                                        printButtonEnabled = false
+                                        for (i in 5 downTo 1)
+                                            delay(1000)
+                                        printButtonEnabled = true
+                                    }
+                                },
+                                modifier = Modifier.width(200.dp)
                             ) {
                                 Text(
-                                    text = "Печать",
-                                    fontSize = 30.sp
+                                    text = if (printButtonEnabled) "Печать" else "Подождите",
+                                    fontSize = 24.sp
                                 )
                             }
                         }
@@ -383,7 +382,18 @@ fun printPhoto(image: BufferedImage, copiesNum: Int) {
         val size = mediaSize.getSize(MediaSize.MM)
 
         add(Settings.paper)
-        add(MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.MM))
+
+        var mediaPrintableArea = MediaPrintableArea(0f, 0f, size[0], size[1], MediaPrintableArea.MM)
+        val array = (Settings.printer!!
+            .getSupportedAttributeValues(MediaPrintableArea::class.java, null, this)) as Array<*>
+
+        for (el in array)
+            if (el is MediaPrintableArea) {
+                mediaPrintableArea = el
+                break
+            }
+
+        add(mediaPrintableArea)
         add(Copies(copiesNum))
     }
 
@@ -411,10 +421,7 @@ class ImagePrintable(private val image: BufferedImage) : Printable {
             val scaleY = pageHeight / imageHeight
             val scaleFactor = min(scaleX, scaleY)
             g.scale(scaleFactor, scaleFactor)
-            val dx = (pageWidth - imageWidth * scaleFactor) / 2   //todo скорее всего можно удалить
-            val dy = (pageHeight - imageHeight * scaleFactor) / 2
-
-            g.drawImage(image, (dx / scaleFactor).roundToInt(), (dy / scaleFactor).roundToInt(), null)
+            g.drawImage(image, 0, 0, null)
 
             return PAGE_EXISTS
         }

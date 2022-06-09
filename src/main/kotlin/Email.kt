@@ -1,5 +1,3 @@
-package fragments.result
-
 import java.io.File
 import javax.mail.*
 import javax.mail.internet.InternetAddress
@@ -9,7 +7,6 @@ import javax.mail.internet.MimeMultipart
 
 
 object Email {
-    @JvmStatic
     fun sendEmail(
         to: String,
         photo: File,
@@ -18,7 +15,7 @@ object Email {
         onSuccess: () -> Unit,
         onFail: () -> Unit
     ) {
-        val from = Settings.emailAddress.value
+        val from = Settings.emailAddress
 
         val host = "smtp.gmail.com"
 
@@ -31,7 +28,7 @@ object Email {
 
         val session = Session.getDefaultInstance(properties, object : Authenticator() {
             override fun getPasswordAuthentication(): PasswordAuthentication {
-                return PasswordAuthentication(Settings.emailAddress.value, Settings.emailPassword.value)
+                return PasswordAuthentication(Settings.emailAddress, Settings.emailPassword)
             }
         })
 //        session.debug = true

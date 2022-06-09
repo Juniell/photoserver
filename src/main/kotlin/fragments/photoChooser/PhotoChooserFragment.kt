@@ -2,17 +2,15 @@ package fragments.photoChooser
 
 import Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -22,25 +20,27 @@ import components.LazyGrid
 import components.Spinnable
 import components.Spinner
 import components.TimeRangePicker
+import createMini
+import getImageFilesInDir
 import io.kamel.core.config.KamelConfig
-import io.kamel.core.config.takeFrom
+import io.kamel.core.config.fileFetcher
 import io.kamel.image.KamelImage
-import io.kamel.image.config.Default
 import io.kamel.image.config.LocalKamelConfig
+import io.kamel.image.config.imageBitmapDecoder
 import io.kamel.image.lazyPainterResource
-import loadImageBitmap
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
-import scaleBitmapAspectRatio
-import java.awt.image.BufferedImage
 import java.io.File
-import java.io.InputStream
-import javax.imageio.ImageIO
-
-// todo: убрать paddings в картинках в Grid
+import java.text.SimpleDateFormat
+import java.util.*
 
 const val DIR_MINIS = "minis"
+val kamelConfig = KamelConfig {
+    imageBitmapDecoder()
+    fileFetcher()
+    imageBitmapCacheSize = 1000
+}
 
 @ExperimentalFoundationApi
 @ExperimentalSplitPaneApi
@@ -49,12 +49,7 @@ fun PhotoChooserFragment(
     onBackButtonClick: () -> Unit,
     onNextButtonClick: () -> Unit
 ) {
-    val kamelConfig = KamelConfig {
-        takeFrom(KamelConfig.Default)
-        imageBitmapCacheSize = 1000
-    }
-
-    val path = Settings.dirInput.value
+    val path = Settings.dirInput
     val pathMinis = path + File.separator + DIR_MINIS
 
     File(pathMinis).apply {
@@ -62,15 +57,16 @@ fun PhotoChooserFragment(
             mkdir()
     }
 
-    val files = (File(path).listFiles()?.toList() ?: listOf())
-        .filter { it.isFile && it.name.split(".").last() == "jpg" }
+    val photosMini = getImageFilesInDir(File(pathMinis))
+
+    val files = getImageFilesInDir(File(path))
     var filteredFiles by remember { mutableStateOf(files.sortedBy { it.lastModified() }.reversed()) }
-    val filesMinisMap = (File(pathMinis).listFiles()?.toList() ?: listOf()).associateBy { it.name }
+    val filesMinisMap = photosMini.toList().associateBy { it.name }
 
     var selectedFilter by remember { mutableStateOf<Spinnable>(Filters.NEW_FIRST) }
     var chooserTimeRangeOn by remember { mutableStateOf(false) }
     val timeFirst = remember { mutableStateOf(0) }
-    val timeSecond = remember { mutableStateOf(24) }
+    val timeSecond = remember { mutableStateOf(23) }
 
     MaterialTheme {
         if (files.isEmpty())
@@ -99,6 +95,8 @@ fun PhotoChooserFragment(
                                 createMini(it, pathMinis) ?: it
 
                             CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
+                                if (!imageFile.exists())
+                                    return@CompositionLocalProvider
                                 val image = lazyPainterResource(data = imageFile)
 
                                 KamelImage(
@@ -133,30 +131,36 @@ fun PhotoChooserFragment(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Spinner(
-                                label = { Text("Фильтрация")},
+                                label = { Text("Фильтрация") },
                                 data = Filters.values().toList(),
                                 value = selectedFilter,
                                 onSelected = { selectedElement: Spinnable ->
                                     selectedFilter = selectedElement
                                     filteredFiles = when (selectedFilter) {
                                         Filters.OLD_FIRST ->
-                                            files.sortedBy { it.lastModified() }
+                                            filteredFiles.sortedBy { it.lastModified() }
                                         else ->
-                                            files.sortedBy { it.lastModified() }.reversed()
+                                            filteredFiles.sortedBy { it.lastModified() }.reversed()
                                     }.toMutableList()
                                 },
-                                    width = 300.dp,
-                                    padding = PaddingValues(7.dp),
-                                    textFontSize = 20.sp
+                                width = 300.dp,
+                                padding = PaddingValues(7.dp),
+                                textFontSize = 20.sp
                             )
 
                             Button(
                                 modifier = Modifier.padding(end = 15.dp),
                                 onClick = {
-//                                if (chooserTimeRangeOn) {
-                                    // todo: добавить фильтрацию по времени
-                                    // todo: спрашивать в настройках, нужно ли указывать ещё и дату?
-//                                }
+                                    if (chooserTimeRangeOn) {
+                                        filteredFiles = files.filter {
+                                            val hour = SimpleDateFormat("HH").format(Date(it.lastModified())).toInt()
+                                            if (timeFirst.value <= timeSecond.value)
+                                                (timeFirst.value..timeSecond.value).contains(hour)
+                                            else
+                                                ((timeFirst.value..23).contains(hour) ||
+                                                        (0..timeSecond.value).contains(hour))
+                                        }
+                                    }
                                     chooserTimeRangeOn = !chooserTimeRangeOn
                                 }
                             ) {
@@ -171,9 +175,11 @@ fun PhotoChooserFragment(
 
                         if (chooserTimeRangeOn) {
                             Row(
-                                horizontalArrangement = Arrangement.SpaceAround,
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 5.dp)
                             ) {
                                 TimeRangePicker(
                                     timeFirst = timeFirst,
@@ -182,18 +188,51 @@ fun PhotoChooserFragment(
                                     animationHeight = 50.dp,
                                     textStyle = TextStyle(fontSize = 30.sp)
                                 )
-                            }
 
-                            Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
+                                Button(
+                                    onClick = {
+                                        timeFirst.value = 0
+                                        timeSecond.value = 23
+                                    },
+                                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.LightGray),
+                                    modifier = Modifier.padding(start = 10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Clear,
+                                        tint = Color.DarkGray,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(end = 3.dp)
+                                    )
+                                    Text("Сбросить")
+                                }
+                            }
                         }
 
-                        Image(
-                            painter = BitmapPainter(loadImageBitmap(photoPreview)),
-                            contentDescription = "Preview",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.padding(7.dp).align(Alignment.CenterHorizontally)
-                                .fillMaxHeight(1f / 1.3f)
-                        )
+                        CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
+                            if (!photoPreview.exists())
+                                return@CompositionLocalProvider
+                            val image = lazyPainterResource(data = photoPreview)
+
+                            KamelImage(
+                                resource = image,
+                                contentDescription = "Preview",
+                                onLoading = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .align(Alignment.CenterHorizontally)
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                },
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .padding(7.dp)
+                                    .align(Alignment.CenterHorizontally)
+                                    .fillMaxHeight(0.9f)
+
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
 
@@ -208,7 +247,9 @@ fun PhotoChooserFragment(
 
                             Button(onClick = {
                                 Settings.selectedPhoto = photoPreview
-                                onNextButtonClick(/*photoPreview*/)
+                                Settings.selectedPhotoMini =
+                                    File(Settings.dirInput + File.separator + DIR_MINIS + File.separator + photoPreview.name)
+                                onNextButtonClick()
                             }) {
                                 Text("Далее", fontSize = 30.sp, modifier = Modifier.padding(2.dp))
                             }
@@ -218,21 +259,6 @@ fun PhotoChooserFragment(
             }
         }
     }
-}
-
-
-fun createMini(imageFile: File, pathMinis: String): File? {
-    val input: InputStream = imageFile.inputStream()
-    val result: BufferedImage? = ImageIO.read(input)
-
-    if (result != null) {
-        val image: BufferedImage = scaleBitmapAspectRatio(result, 500, 500) //todo: задавать размер как-то по-другому?
-
-        val imageFileMini = File(pathMinis + File.separator + imageFile.name)
-        val resSave = ImageIO.write(image, "JPG", imageFileMini.outputStream())
-        return if (resSave) imageFileMini else null
-    }
-    return null
 }
 
 enum class Filters(val text: String) : Spinnable {

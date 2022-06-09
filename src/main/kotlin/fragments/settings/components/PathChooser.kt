@@ -15,7 +15,6 @@ import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
-//todo: подумать над отображением путей для DIR
 @Composable
 fun PathChooser(
     modifier: Modifier = Modifier,
@@ -43,14 +42,12 @@ fun PathChooser(
                     fontSize = 15.sp
                 )
             },
-            value =
-            if (mode == PathChooserMode.IMAGE) {
-                if (savedPath != null)
-                    File(savedPath!!).name
-                else
-                    ""
-            } else
-                savedPath ?: "",
+            value = if (!savedPath.isNullOrEmpty())
+                File(savedPath!!).let {
+                    (it.parentFile?.name ?: "") + File.separator + it.name
+                }
+            else
+                "",
             onValueChange = { },
             readOnly = true,
             singleLine = true,
@@ -62,8 +59,6 @@ fun PathChooser(
         )
 
         Button(
-//            modifier = Modifier
-//                .padding(end = 5.dp),
             onClick = {
                 val chooser = JFileChooser()
                 chooser.dialogTitle = dialogTitle
@@ -73,7 +68,6 @@ fun PathChooser(
                     chooser.currentDirectory = file?.parentFile ?: File(".")
                     chooser.fileFilter = FileNameExtensionFilter(
                         "Image files",
-//                        *ImageIO.getReaderFileSuffixes()
                         "png"
                     )
                 } else {
@@ -82,7 +76,7 @@ fun PathChooser(
 
                 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                     val newPath = chooser.selectedFile.path
-                    savedPath = newPath // отлавливаем путь
+                    savedPath = newPath
                     onDirChoose(newPath)
                 }
             }

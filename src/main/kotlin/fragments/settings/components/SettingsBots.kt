@@ -1,7 +1,8 @@
 package fragments.settings.components
 
-import BotServer
+import BotClient
 import BotSettings
+import Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -18,29 +19,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.rememberDialogState
+import components.CheckboxWithText
 import fragments.settings.elWidth
 import fragments.settings.textStyle
 import io.ktor.http.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.net.InetAddress
 
-//todo: переименовать в настройки социальных сетей?
 @ExperimentalMaterialApi
 @Composable
 fun SettingsBots(
     serverState: ConnectionState,
     onServerStateChange: (state: ConnectionState) -> Unit,
 ) {
-    var botSettings by remember { mutableStateOf<BotSettings?>(null) }  //todo: если убрать null, то будет сохраняться показ
+    var botSettings by remember { mutableStateOf<BotSettings?>(null) }
     var title by remember { mutableStateOf("Последняя сохранённая информация") }
-    var emailAddressError by remember { mutableStateOf(false) } //todo: проверка для данных из бд
+    var emailAddressError by remember { mutableStateOf(emailAddressIsError()) }
 
     Column(
         modifier = Modifier
@@ -48,67 +45,19 @@ fun SettingsBots(
             .padding(20.dp)
     ) {
 
-        var inetCheckState by remember { mutableStateOf(ConnectionState.UNKNOWN) }
-
-        if (inetCheckState == ConnectionState.UNKNOWN)
-            LaunchedEffect(Unit) {
-                withContext(Dispatchers.IO) {
-                    inetCheckState = ConnectionState.CHECK
-                    val inetState = InetAddress.getByName("8.8.8.8").isReachable(15)
-
-                    inetCheckState = if (inetState) ConnectionState.OK else ConnectionState.BAD
-                }
-            }
-
-        Text(
-            text = "Доступ в интернет",
-            fontSize = 20.sp,
-            modifier = Modifier
-                .padding(start = 5.dp, bottom = 10.dp)
-        )
-
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 15.dp)
-        ) {
-
-            progress(inetCheckState, 30.dp)
-
-            Text(
-                text = when (inetCheckState) {
-                    ConnectionState.UNKNOWN -> "Не известно, есть ли доступ в интернет"
-                    ConnectionState.CHECK -> "Проверка доступа в интернет"
-                    ConnectionState.OK -> "Доступ в интернет есть"
-                    ConnectionState.BAD -> "Доступ в интернет отсутствует"
-                },
-                fontSize = 17.sp,
-            )
-        }
-
-
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        CheckboxWithText(
+            checked = Settings.emailNeed,
+            onCheckedChange = {
+                Settings.emailNeed = it
+            },
+            text = "Разрешить пользователям получать фото по почте",
+            fontSize = textStyle.fontSize,
+            spaceBetween = 10.dp,
             modifier = Modifier
                 .padding(bottom = 15.dp)
-        ) {
-            CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-                Checkbox(
-                    checked = Settings.emailNeed.value,
-                    onCheckedChange = {
-                        Settings.emailNeed.value = it
-                    },
-                    modifier = Modifier.padding(end = 10.dp)
-                )
-            }
-            Text(
-                text = "Разрешить пользователям получать фото по почте",
-                fontSize = textStyle.fontSize
-            )
-        }
+        )
 
-        if (Settings.emailNeed.value) {
+        if (Settings.emailNeed) {
             OutlinedTextField(
                 label = {
                     Text(
@@ -116,15 +65,15 @@ fun SettingsBots(
                         fontSize = 15.sp,
                     )
                 },
-                value = Settings.emailAddress.value,
+                value = Settings.emailAddress,
                 textStyle = textStyle,
                 isError = emailAddressError,
                 onValueChange = {
-                    Settings.emailAddress.value = it
-                    emailAddressError = !Settings.emailAddress.value.matches(Regex("""(\w|\d|_)+@gmail\.com"""))
+                    Settings.emailAddress = it
+                    emailAddressError = emailAddressIsError()
                 },
                 modifier = Modifier
-                    .width(elWidth + 2 * 5.dp - 20 * 2.dp)
+                    .width(elWidth)
             )
             Text(
                 text = "* Пока поддерживается только Gmail",
@@ -140,16 +89,15 @@ fun SettingsBots(
                         fontSize = 15.sp,
                     )
                 },
-                value = Settings.emailPassword.value,
+                value = Settings.emailPassword,
                 textStyle = textStyle,
                 visualTransformation = { text ->
                     TransformedText(AnnotatedString("*".repeat(text.length)), OffsetMapping.Identity)
                 },
-                onValueChange = {
-                    Settings.emailPassword.value = it
-                },
+                isError = Settings.emailPassword.isEmpty(),
+                onValueChange = { Settings.emailPassword = it },
                 modifier = Modifier
-                    .width(elWidth + 2 * 5.dp - 20 * 2.dp)
+                    .width(elWidth)
             )
             Text(
                 text = "* Необходим пароль, сгенерированный специально для приложений",
@@ -159,29 +107,19 @@ fun SettingsBots(
             )
         }
 
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        CheckboxWithText(
+            checked = Settings.botNeed,
+            onCheckedChange = {
+                Settings.botNeed = it
+            },
+            text = "Работать с ботами",
+            fontSize = textStyle.fontSize,
+            spaceBetween = 10.dp,
             modifier = Modifier
                 .padding(bottom = 15.dp)
-        ) {
-            CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-                Checkbox(
-                    checked = Settings.botNeed.value,
-                    onCheckedChange = {
-                        Settings.botNeed.value = it
-                    },
-                    modifier = Modifier.padding(end = 10.dp)
-                )
-            }
-            Text(
-                text = "Работать с ботами",
-                fontSize = textStyle.fontSize
-            )
-        }
+        )
 
-
-        if (!Settings.botNeed.value)
+        if (!Settings.botNeed)
             return@Column
 
         Row(
@@ -197,22 +135,25 @@ fun SettingsBots(
                         fontSize = 15.sp,
                     )
                 },
-                value = Settings.botServerAddress.value,
+                value = Settings.botServerAddress,
                 textStyle = textStyle,
-                onValueChange = { Settings.botServerAddress.value = it },
+                onValueChange = {
+                    Settings.botServerAddress = it
+                    onServerStateChange(ConnectionState.UNKNOWN)
+                },
                 modifier = Modifier
-                    .width(elWidth + 2 * 5.dp - 20 * 2.dp)  //todo: пофиксить
+                    .width(elWidth)
             )
 
             Button(
-                enabled = Settings.botServerAddress.value.isNotEmpty(),
+                enabled = Settings.botServerAddress.isNotEmpty() && Settings.botServerPhrase.isNotEmpty(),
                 onClick = {
                     onServerStateChange(ConnectionState.CHECK)
 
-                    BotServer.initApi(Settings.botServerAddress.value)
-                    val botServer = BotServer.getApi()
+                    BotClient.initApi(Settings.botServerAddress)
+                    val botServer = BotClient.getApi()
 
-                    val call = botServer.getSettings()
+                    val call = botServer.getSettings(Settings.botServerPhrase)
                     call.enqueue(object : Callback<BotSettings> {
                         override fun onResponse(call: Call<BotSettings>, response: Response<BotSettings>) {
                             botSettings = response.body()
@@ -242,6 +183,25 @@ fun SettingsBots(
             )
         }
 
+        OutlinedTextField(
+            label = {
+                Text(
+                    text = "Пароль для общения с сервером ботов",
+                    fontSize = 15.sp,
+                )
+            },
+            value = Settings.botServerPhrase,
+            visualTransformation = { text ->
+                TransformedText(AnnotatedString("*".repeat(text.length)), OffsetMapping.Identity)
+            },
+            isError = Settings.botServerPhrase.isEmpty(),
+            textStyle = textStyle,
+            onValueChange = { Settings.botServerPhrase = it },
+            modifier = Modifier
+                .width(elWidth)
+                .padding(bottom = 10.dp)
+        )
+
         if (botSettings != null || serverState == ConnectionState.BAD) {
 
             Text(
@@ -251,8 +211,9 @@ fun SettingsBots(
                     .padding(start = 5.dp, bottom = 10.dp)
             )
 
-            Column(
-                horizontalAlignment = Alignment.End,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(15.dp),
                 modifier = Modifier.wrapContentSize()
             ) {
                 if (botSettings != null || serverState == ConnectionState.BAD)
@@ -261,24 +222,24 @@ fun SettingsBots(
                         listOf(
                             Pair(
                                 "Чат во ВКонтакте:",
-                                if (Settings.vkGroupId.value < 0)
+                                if (Settings.vkGroupId < 0)
                                     ""
                                 else
-                                    "vk.me/club${Settings.vkGroupId.value}"
+                                    "vk.me/club${Settings.vkGroupId}"
                             ),
                             Pair(
                                 "Чат в Telegram:",
-                                if (Settings.telegramBotName.value.isEmpty())
+                                if (Settings.telegramBotName.isEmpty())
                                     ""
                                 else
-                                    "tg://resolve?domain=${Settings.telegramBotName.value}"
+                                    "tg://resolve?domain=${Settings.telegramBotName}"
                             ),
                             Pair(
                                 "Время хранения фотографий (в сутках):",
-                                if (Settings.photoLifeTime.value < 0)
+                                if (Settings.photoLifeTime < 0)
                                     ""
                                 else
-                                    Settings.photoLifeTime.value.toString()
+                                    Settings.photoLifeTime.toString()
                             )
                         ),
                         fontSize = 17.sp,
@@ -300,9 +261,9 @@ fun SettingsBots(
 
                     if (dialogVisible)
                         ChangeSettingsBotDialog(
-                            vkId = Settings.vkGroupId.value,
-                            tgmName = Settings.telegramBotName.value,
-                            photoLifeTime = Settings.photoLifeTime.value,
+                            vkId = Settings.vkGroupId,
+                            tgmName = Settings.telegramBotName,
+                            photoLifeTime = Settings.photoLifeTime,
                             onCloseRequest = {
                                 dialogVisible = false
                             },
@@ -318,10 +279,12 @@ fun SettingsBots(
 }
 
 fun saveNewServerInfo(botSettings: BotSettings) {
-    Settings.vkGroupId.value = botSettings.vkId
-    Settings.telegramBotName.value = botSettings.tgmId
-    Settings.photoLifeTime.value = botSettings.photoLife
+    Settings.vkGroupId = botSettings.vkId
+    Settings.telegramBotName = botSettings.tgmId
+    Settings.photoLifeTime = botSettings.photoLife
 }
+
+fun emailAddressIsError() = !Settings.emailAddress.matches(Regex("""(\w|\d|_)+@gmail\.com"""))
 
 @Composable
 fun progress(

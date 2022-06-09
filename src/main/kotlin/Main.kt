@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
@@ -27,7 +29,11 @@ fun main() = application {
     var renewEditor by remember { mutableStateOf(false) }
     var resultPhoto by remember { mutableStateOf<File?>(null) }
 
-    if (fragment == Fragments.SETTINGS)
+    if (fragment == Fragments.SETTINGS) {
+        Settings.oldVkGroupId = Settings.vkGroupId
+        Settings.oldFtpUserLogin = Settings.ftpUserLogin
+        Settings.oldFtpUserPassword = Settings.ftpUserPassword
+
         Window(
             title = "Settings",
             state = rememberWindowState(width = 1000.dp, height = 750.dp),
@@ -35,15 +41,34 @@ fun main() = application {
         ) {
             SettingFragment(
                 onNextButtonClick = {
+                    // start or stop ktor server for mirrors
+                    when {
+                        Settings.mirrorNeed && !MirrorsServer.isWorks() -> MirrorsServer.start()
+                        !Settings.mirrorNeed && MirrorsServer.isWorks() -> MirrorsServer.stop()
+                    }
+                    // start or stop ftp server for cameras
+                    when {
+                        Settings.camerasNeed && !FtpServer.isWorks() -> FtpServer.start()
+                        !Settings.camerasNeed && FtpServer.isWorks() -> FtpServer.stop()
+                    }
+
                     fragment = Fragments.WELCOME
                 }
             )
         }
+    }
     else {
         Window(
             title = "PhotoServer",
             state = rememberWindowState(WindowPlacement.Maximized/*Fullscreen*/),
-            onCloseRequest = ::exitApplication
+            onCloseRequest = ::exitApplication,
+            onPreviewKeyEvent = {
+                if (it.key == Key.Escape) {
+                    fragment = Fragments.SETTINGS
+                    true
+                } else
+                    false
+            }
         ) {
 
             when (fragment) {
@@ -67,8 +92,8 @@ fun main() = application {
                         },
                         onNextButtonClick = { resPhoto ->
                             resultPhoto = resPhoto
-                            if (Settings.botNeed.value)
-                                sendPhoto(resPhoto, Settings.botServerAddress.value, Settings.dirOutput.value)
+                            if (Settings.botNeed)
+                                sendPhoto(resPhoto)
                             fragment = Fragments.RESULT
                         },
                         renew = renewEditor
@@ -95,13 +120,13 @@ fun main() = application {
     }
 }
 
-private fun sendPhoto(photo: File, botAddress: String, dirOutput: String) {
-    BotServer.apply {
+private fun sendPhoto(photo: File) {
+    BotClient.apply {
         if (!checkUrlInit())
-            initApi(botAddress)
+            initApi(Settings.botServerAddress)
 
         if (!checkDirInit())
-            initOutputDir(dirOutput)
+            initOutputDir(Settings.dirOutput)
 
         sendPhoto(photo)
     }

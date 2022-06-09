@@ -1,22 +1,25 @@
 package fragments.settings.components
 
+import Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Slider
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
+import components.CheckboxWithText
 import components.Spinnable
 import components.Spinner
-import fragments.settings.*
+import fragments.settings.elWidth
+import fragments.settings.textStyle
 import loadImageBitmap
 import java.io.File
 import javax.print.PrintService
@@ -35,24 +38,24 @@ fun SettingsPrint(
     onPaperSizeChange: (size: MediaSizeName?) -> Unit,
 ) {
     fun checkFrameError(): Boolean {
-        val frameFile = if (Settings.photoFramePath.value.isNotEmpty())
-            File(Settings.photoFramePath.value)
+        val frameFile = if (Settings.photoFramePath.isNotEmpty())
+            File(Settings.photoFramePath)
         else
             null
 
-        return if (Settings.frameNeed.value)
+        return if (Settings.frameNeed)
             !(frameFile != null && frameFile.exists() && frameFile.isFile && frameFile.extension == "png")
         else
             false
     }
 
-    var frameError by remember(Settings.frameNeed.value, Settings.photoFramePath.value) {
+    var frameError by remember(Settings.frameNeed, Settings.photoFramePath) {
         mutableStateOf(checkFrameError())
     }
     var paperSizeList by remember { mutableStateOf(printer?.getPaperSizeList()) }
     var sampleVisible by remember { mutableStateOf(true) }
-    var copiesEnabled by remember { mutableStateOf(Settings.photoCopiesNum.value > 1) }
-    var copiesNum by remember { mutableStateOf(Settings.photoCopiesNum.value.toFloat()) }
+    var copiesEnabled by remember { mutableStateOf(Settings.photoCopiesNum > 1) }
+    var copiesNum by remember { mutableStateOf(Settings.photoCopiesNum.toFloat()) }
 
 
     Row(
@@ -63,32 +66,23 @@ fun SettingsPrint(
 
         Column(
             modifier = Modifier
-                .width(elWidth + 2 * 5.dp)  //todo: везде поправить
                 .padding(20.dp)
+                .width(elWidth)
                 .wrapContentHeight()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            CheckboxWithText(
+                checked = Settings.printNeed,
+                onCheckedChange = {
+                    Settings.printNeed = it
+                },
+                text = "Разрешить печатать фотографии",
+                fontSize = textStyle.fontSize,
+                spaceBetween = 10.dp,
                 modifier = Modifier
                     .padding(bottom = 5.dp)
-            ) {
-                CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-                    Checkbox(
-                        checked = Settings.printNeed.value,
-                        onCheckedChange = {
-//                            sampleVisible = true
-                            Settings.printNeed.value = it
-                        },
-                        modifier = Modifier.padding(end = 10.dp)
-                    )
-                }
-                Text(
-                    text = "Разрешить печатать фотографии",
-                    fontSize = textStyle.fontSize
-                )
-            }
+            )
 
-            if (Settings.printNeed.value) {
+            if (Settings.printNeed) {
                 Spinner(
                     label = {
                         Text(
@@ -100,8 +94,8 @@ fun SettingsPrint(
                     data = printerList,
                     onSelected = { element: Spinnable ->
                         onPrinterNameChange(element as Printer)
-                        Settings.printerName.value = element.printService.name
-                        Settings.paperSize.value = ""
+                        Settings.printerName = element.printService.name
+                        Settings.paperSize = ""
                         Settings.printer = element.printService
                         Settings.paper = null
                         paperSizeList = element.getPaperSizeList()
@@ -122,32 +116,29 @@ fun SettingsPrint(
                     onSelected = {
                         onPaperSizeChange((it as PaperSize).size)
                         Settings.paper = it.size
-                        Settings.paperSize.value = it.toString()
+                        Settings.paperSize = it.toString()
                     },
                     padding = PaddingValues(bottom = 15.dp),
                     textFontSize = textStyle.fontSize
                 )
 
                 Text(
-                    text = "Пользователь сможет распечатать максимум ${Settings.photoCopiesNum.value} фото",
+                    text = "Пользователь сможет распечатать максимум ${Settings.photoCopiesNum} фото",
                     modifier = Modifier
                         .padding(bottom = 10.dp)
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-                        Checkbox(
-                            checked = copiesEnabled,
-                            onCheckedChange = {
-                                copiesEnabled = it
-                                copiesNum = if (it) 2f else 1f
-                                Settings.photoCopiesNum.value = copiesNum.toInt()
-                            },
-                            modifier = Modifier.padding(end = 10.dp)
-                        )
-                    }
-                    Text("Разрешить пользователям печатать несколько копий")
-                }
+                CheckboxWithText(
+                    checked = copiesEnabled,
+                    onCheckedChange = {
+                        copiesEnabled = it
+                        copiesNum = if (it) 2f else 1f
+                        Settings.photoCopiesNum = copiesNum.toInt()
+                    },
+                    text = "Разрешить пользователям печатать несколько копий",
+                    fontSize = textStyle.fontSize,
+                    spaceBetween = 10.dp,
+                )
 
                 Slider(
                     value = copiesNum,
@@ -156,57 +147,49 @@ fun SettingsPrint(
                     enabled = copiesEnabled,
                     onValueChange = { copiesNum = it },
                     onValueChangeFinished = {
-                        Settings.photoCopiesNum.value = copiesNum.toInt()
+                        Settings.photoCopiesNum = copiesNum.toInt()
                     }
                 )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            CheckboxWithText(
+                checked = Settings.frameNeed,
+                onCheckedChange = {
+                    sampleVisible = true
+                    Settings.frameNeed = it
+                    frameError = checkFrameError()
+
+                    if (frameError)
+                        Settings.photoFramePath = ""
+                },
+                text = "Клеить рамку на итоговое фото",
+                fontSize = textStyle.fontSize,
+                spaceBetween = 10.dp,
                 modifier = Modifier
                     .padding(bottom = 5.dp)
-            ) {
-                CompositionLocalProvider(LocalMinimumTouchTargetEnforcement provides false) {
-                    Checkbox(
-                        checked = Settings.frameNeed.value,
-                        onCheckedChange = {
-                            sampleVisible = true
-                            Settings.frameNeed.value = it
-                            frameError = checkFrameError()
+            )
 
-                            if (frameError)
-                                Settings.photoFramePath.value = ""
-                        },
-                        modifier = Modifier.padding(end = 10.dp)
-                    )
-                }
-                Text(
-                    text = "Клеить рамку на итоговое фото",
-                    fontSize = textStyle.fontSize
-                )
-            }
-
-            if (Settings.frameNeed.value)
+            if (Settings.frameNeed)
                 PathChooser(
                     mode = PathChooserMode.IMAGE,
                     title = "Рамка фотографии",
                     dialogTitle = "Выбор рамки фотографий",
-                    file = File(Settings.photoFramePath.value),
+                    file = File(Settings.photoFramePath),
                     isError = frameError,
                     textStyle = textStyle,
                     onDirChoose = {
-                        Settings.photoFramePath.value = it
+                        Settings.photoFramePath = it
                         frameError = checkFrameError()
 
                         if (frameError)
-                            Settings.photoFramePath.value = ""
+                            Settings.photoFramePath = ""
 
                     },
                     modifier = Modifier.padding(bottom = 15.dp)
                 )
         }
 
-        if ((Settings.printNeed.value && paperSize != null) || (!Settings.printNeed.value && Settings.frameNeed.value && !frameError))
+        if ((Settings.printNeed && paperSize != null) || (!Settings.printNeed && Settings.frameNeed && !frameError))
             Column(
                 modifier = Modifier.padding(top = 20.dp)
             ) {
@@ -215,7 +198,7 @@ fun SettingsPrint(
 
                 Text(
                     text = "Пример" +
-                            if (paperSize != null && Settings.printNeed.value)
+                            if (paperSize != null && Settings.printNeed)
                                 " (${ratio.first}mm x ${ratio.second}mm)"
                             else
                                 "",
@@ -241,23 +224,24 @@ fun SettingsPrint(
                             modifier = Modifier.matchParentSize()
                         )
 
-                    if (Settings.frameNeed.value && !frameError)
+                    if (Settings.frameNeed && !frameError)
                         Image(
-                            bitmap = loadImageBitmap(File(Settings.photoFramePath.value)),
+                            bitmap = loadImageBitmap(File(Settings.photoFramePath)),
                             contentDescription = null,
                             contentScale = ContentScale.FillBounds,
                             modifier = Modifier.matchParentSize()
                         )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = sampleVisible,
-                        onCheckedChange = { sampleVisible = it },
-                        enabled = Settings.frameNeed.value && !frameError
-                    )
-                    Text("Показать пример фото")
-                }
+                CheckboxWithText(
+                    checked = sampleVisible,
+                    onCheckedChange = { sampleVisible = it },
+                    enabled = Settings.frameNeed && !frameError,
+                    text = "Показать пример фото",
+                    fontSize = textStyle.fontSize,
+                    spaceBetween = 10.dp,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
             }
     }
 }
@@ -267,13 +251,16 @@ fun getRatio(
     paperSize: MediaSizeName?
 ): Pair<Float, Float> {
     return when {
-        Settings.printNeed.value && paperSize != null -> {
+        Settings.printNeed && paperSize != null -> {
             val size = MediaSize.getMediaSizeForName(paperSize).getSize(MediaSize.MM)
-            size[0] to size[1]
+            if (imageBitmap.height > imageBitmap.width)
+                size[0] to size[1]
+            else
+                size[1] to size[0]
         }
 
-        !Settings.printNeed.value && Settings.frameNeed.value && Settings.photoFramePath.value.isNotEmpty() -> {
-            val frame = loadImageBitmap(File(Settings.photoFramePath.value))
+        !Settings.printNeed && Settings.frameNeed && Settings.photoFramePath.isNotEmpty() -> {
+            val frame = loadImageBitmap(File(Settings.photoFramePath))
             val frameBigSide: Int
             val frameSmallSide: Int
 

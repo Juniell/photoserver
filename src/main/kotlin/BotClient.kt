@@ -16,7 +16,7 @@ import java.io.FileFilter
 
 private const val DIR_UNSENT = "Unsent"
 
-object BotServer {
+object BotClient {
     private lateinit var serverUrl: String
     private lateinit var unsentDirPath: String
 
@@ -52,7 +52,7 @@ object BotServer {
 
     fun checkDirInit() = this::unsentDirPath.isInitialized
 
-    fun getApi() = api  //throws exception, если не был вызван initApi
+    fun getApi() = api
 
     fun sendPhoto(photo: File) {
         runBlocking {
@@ -79,7 +79,7 @@ object BotServer {
         onFailure: () -> Unit = { },
     ) {
         val part = photoToMultipart(photo)
-        val call = api.sendPhoto(part)
+        val call = api.sendPhoto(Settings.botServerPhrase, part)
 
         call.enqueue(object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
@@ -155,7 +155,6 @@ object BotServer {
     private fun readUnsentDir() =
         File(unsentDirPath).listFiles(FileFilter { it.extension == "jpg" })?.toList() ?: emptyList()
 
-
     private fun copyFileToUnsentDir(file: File) {
         val newPath = unsentDirPath + File.separator + file.name
         file.copyTo(File(newPath))
@@ -168,18 +167,23 @@ interface BotService {
     @Multipart
     @POST("photo")
     fun sendPhoto(
+        @Query("phrase") phrase: String,
         @Part photo: MultipartBody.Part,
     ): Call<ResponseBody>
 
     @POST("check")
-    fun checkConnect(): Call<ResponseBody>
+    fun checkConnect(
+        @Query("phrase") phrase: String,
+    ): Call<ResponseBody>
 
     @GET("settings")
-    fun getSettings(): Call<BotSettings>
+    fun getSettings(
+        @Query("phrase") phrase: String,
+    ): Call<BotSettings>
 }
 
 data class BotSettings(
-    val vkId: Int,          // id группы вк
-    val tgmId: String,      // id чата телеграмма
-    val photoLife: Int      // время хранения фотографий (дни)
+    val vkId: Int,
+    val tgmId: String,
+    val photoLife: Int
 )
