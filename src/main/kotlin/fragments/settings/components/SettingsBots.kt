@@ -31,13 +31,11 @@ import retrofit2.Response
 
 @ExperimentalMaterialApi
 @Composable
-fun SettingsBots(
-    serverState: ConnectionState,
-    onServerStateChange: (state: ConnectionState) -> Unit,
-) {
+fun SettingsBots() {
     var botSettings by remember { mutableStateOf<BotSettings?>(null) }
     var title by remember { mutableStateOf("Последняя сохранённая информация") }
     var emailAddressError by remember { mutableStateOf(emailAddressIsError()) }
+    var botAddressInfo by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -125,8 +123,6 @@ fun SettingsBots(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier
-                .padding(bottom = 15.dp)
         ) {
             OutlinedTextField(
                 label = {
@@ -139,7 +135,7 @@ fun SettingsBots(
                 textStyle = textStyle,
                 onValueChange = {
                     Settings.botServerAddress = it
-                    onServerStateChange(ConnectionState.UNKNOWN)
+                    Settings.botServerState = ConnectionState.UNKNOWN
                 },
                 modifier = Modifier
                     .width(elWidth)
@@ -148,9 +144,16 @@ fun SettingsBots(
             Button(
                 enabled = Settings.botServerAddress.isNotEmpty() && Settings.botServerPhrase.isNotEmpty(),
                 onClick = {
-                    onServerStateChange(ConnectionState.CHECK)
+                    Settings.botServerState = ConnectionState.CHECK
 
-                    BotClient.initApi(Settings.botServerAddress)
+                    try {
+                        BotClient.initApi(Settings.botServerAddress)
+                        botAddressInfo = ""
+                    } catch (e: IllegalArgumentException) {
+                        botAddressInfo = "Указан неверный адрес"
+                        Settings.botServerState = ConnectionState.BAD
+                        return@Button
+                    }
                     val botServer = BotClient.getApi()
 
                     val call = botServer.getSettings(Settings.botServerPhrase)
@@ -158,15 +161,15 @@ fun SettingsBots(
                         override fun onResponse(call: Call<BotSettings>, response: Response<BotSettings>) {
                             botSettings = response.body()
                             if (botSettings != null && response.code() == HttpStatusCode.OK.value) {
-                                onServerStateChange(ConnectionState.OK)
+                                Settings.botServerState = ConnectionState.OK
                                 saveNewServerInfo(botSettings!!)
                                 title = "Полученная от сервера информация"
                             } else
-                                onServerStateChange(ConnectionState.BAD)
+                                Settings.botServerState = ConnectionState.BAD
                         }
 
                         override fun onFailure(call: Call<BotSettings>, t: Throwable) {
-                            onServerStateChange(ConnectionState.BAD)
+                            Settings.botServerState = ConnectionState.BAD
                         }
                     })
                 }
@@ -178,10 +181,17 @@ fun SettingsBots(
             }
 
             progress(
-                connectionState = serverState,
+                connectionState = Settings.botServerState,
                 size = 40.dp
             )
         }
+
+        Text(
+            text = botAddressInfo,
+            fontSize = 15.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 15.dp)
+        )
 
         OutlinedTextField(
             label = {
@@ -202,7 +212,7 @@ fun SettingsBots(
                 .padding(bottom = 10.dp)
         )
 
-        if (botSettings != null || serverState == ConnectionState.BAD) {
+        if (botSettings != null || Settings.botServerState == ConnectionState.BAD) {
 
             Text(
                 text = title,
@@ -216,7 +226,7 @@ fun SettingsBots(
                 horizontalArrangement = Arrangement.spacedBy(15.dp),
                 modifier = Modifier.wrapContentSize()
             ) {
-                if (botSettings != null || serverState == ConnectionState.BAD)
+                if (botSettings != null || Settings.botServerState == ConnectionState.BAD)
 
                     TwoColumnText(
                         listOf(
@@ -249,7 +259,7 @@ fun SettingsBots(
                             .padding(start = 10.dp)
                     )
 
-                if (serverState == ConnectionState.BAD) {
+                if (Settings.botServerState == ConnectionState.BAD) {
                     var dialogVisible by remember { mutableStateOf(false) }
 
                     Button(

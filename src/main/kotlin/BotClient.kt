@@ -55,22 +55,16 @@ object BotClient {
     fun getApi() = api
 
     fun sendPhoto(photo: File) {
-        runBlocking {
-            coroutineScope {
-                launch {
-                    sendPhoto(
-                        photo = photo,
-                        onResponse = { response ->
-                            if (response.code() == HttpStatusCode.OK.value) {
-                                if (!sendUnsentPhotos && unsentPhotos.isNotEmpty())
-                                    sendUnsentFiles()
-                            } else
-                                copyFileToUnsentDir(photo)
-                        }
-                    )
-                }
+        sendPhoto(
+            photo = photo,
+            onResponse = { response ->
+                if (response.code() == HttpStatusCode.OK.value) {
+                    if (!sendUnsentPhotos && unsentPhotos.isNotEmpty())
+                        sendUnsentFiles()
+                } else
+                    copyFileToUnsentDir(photo)
             }
-        }
+        )
     }
 
     private fun sendPhoto(
@@ -125,8 +119,6 @@ object BotClient {
                                 if (response.code() == HttpStatusCode.OK.value) {
                                     file.delete()
                                     list.remove(file)
-
-                                    // Если это был последний неотправленный файл, отмечаем, что закончили
                                     if (list.isEmpty()) {
                                         unsentPhotos = readUnsentDir()
                                         sendUnsentPhotos = false
@@ -182,7 +174,7 @@ interface BotService {
     ): Call<BotSettings>
 }
 
-data class BotSettings(
+class BotSettings(
     val vkId: Int,
     val tgmId: String,
     val photoLife: Int

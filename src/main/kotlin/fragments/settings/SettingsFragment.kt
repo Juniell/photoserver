@@ -31,7 +31,6 @@ val textStyle = TextStyle(fontSize = 18.sp)
 fun SettingFragment(onNextButtonClick: () -> Unit) {
     val printServices = PrintServiceLookup.lookupPrintServices(null, null)
     val printerList = printServices.map { it.name }
-    var botServerState by remember { mutableStateOf(ConnectionState.UNKNOWN) }
 
     var printer by remember {
         mutableStateOf(
@@ -76,10 +75,7 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
                         SettingsGeneral()
 
                     SettingTabs.BOTS ->
-                        SettingsBots(
-                            serverState = botServerState,
-                            onServerStateChange = { botServerState = it },
-                        )
+                        SettingsBots()
 
                     SettingTabs.PRINT ->
                         SettingsPrint(
@@ -108,7 +104,7 @@ fun SettingFragment(onNextButtonClick: () -> Unit) {
                                 -> "Необходимо указать все настройки в разделе \"Основные\""
 
                                 Settings.botNeed && (Settings.botServerAddress.isEmpty() || Settings.botServerPhrase.isEmpty() ||
-                                        botServerState == ConnectionState.UNKNOWN || Settings.telegramBotName.isEmpty() ||
+                                        Settings.botServerState == ConnectionState.UNKNOWN || Settings.telegramBotName.isEmpty() ||
                                         Settings.vkGroupId < 0 || Settings.photoLifeTime < 0)
                                 -> "Для работы с ботами необходимо указать сервер, пароль, проверить соединение с ним " +
                                         "и проверить все настройки в его разделе"

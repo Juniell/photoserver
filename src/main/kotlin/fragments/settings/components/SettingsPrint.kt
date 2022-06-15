@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.useResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import components.CheckboxWithText
@@ -193,7 +194,11 @@ fun SettingsPrint(
             Column(
                 modifier = Modifier.padding(top = 20.dp)
             ) {
-                val sample by remember { mutableStateOf(loadImageBitmap(File("sample.jpg"))) }
+                val sample by remember {
+                    mutableStateOf(useResource("sample.jpg") {
+                        androidx.compose.ui.res.loadImageBitmap(it)
+                    })
+                }
                 val ratio: Pair<Float, Float> = getRatio(sample, paperSize)
 
                 Text(

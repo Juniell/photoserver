@@ -91,7 +91,7 @@ fun SettingsGeneral() {
 
         Text(
             text = getImageFilesInDir(File(Settings.dirStickers)).let {
-                if (it.isEmpty())
+                if (it.isNotEmpty())
                     "Внимание: выбранная директория не пуста"
                 else
                     ""

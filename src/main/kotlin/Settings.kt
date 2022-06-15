@@ -22,6 +22,7 @@ import Info.vk_group_id
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import fragments.settings.components.ConnectionState
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
@@ -65,6 +66,7 @@ object Settings {
     var oldFtpUserLogin = ""
     var oldFtpUserPassword = ""
     var oldVkGroupId = -1
+    var botServerState by mutableStateOf(ConnectionState.UNKNOWN)
 
 
     /**
