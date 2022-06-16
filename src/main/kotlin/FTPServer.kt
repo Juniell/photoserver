@@ -47,14 +47,15 @@ object FtpServer {
         ftpLets["ftpService"] = object : DefaultFtplet() {
             override fun onUploadEnd(session: FtpSession?, request: FtpRequest?): FtpletResult {
                 coroutineScope.launch {
-                    val file = session?.fileSystemView?.getFile(request?.argument)
-                    if (file != null && file.doesExist() && file.isFile && isImageFile(file.name)) {
-                        val absolutePath = session.user.homeDirectory + file.absolutePath
-                        val imageFile = File(absolutePath)
+                    val ftpFile = session?.fileSystemView?.getFile(request?.argument)
+                    val file = ftpFile?.physicalFile
+                    if (file !is File)
+                        return@launch
+                    if (file.exists() && file.isFile && isImageFile(file.name)) {
                         // Создаём мини версию и после этого перемещаем в рабочую директорию
-                        createMini(imageFile)
-                        imageFile.copyTo(File(Settings.dirInput))
-                        imageFile.delete()
+                        createMini(file)
+                        file.copyTo(File(Settings.dirInput + File.separator + file.name))
+                        file.delete()
                     }
                 }
                 return FtpletResult.DEFAULT

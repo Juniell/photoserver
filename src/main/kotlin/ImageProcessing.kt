@@ -39,6 +39,11 @@ fun loadImageBitmap(file: File): ImageBitmap =
     file.inputStream().buffered().use(::loadImageBitmap)
 
 fun createMini(imageFile: File, pathMinis: String = Settings.dirInput + File.separator + DIR_MINIS): File? {
+    File(pathMinis).apply {
+        if (!exists())
+            mkdir()
+    }
+
     if (!imageFile.exists() || !imageFile.isImageFile())
         return null
 
